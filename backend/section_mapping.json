@@ -1,0 +1,165 @@
+[
+  {
+    "section_number": 1,
+    "section_name": "Odoo Essentials + Studio + General Settings",
+    "description": "Core navigation, settings, Studio builder, customization, and platform fundamentals",
+    "estimated_hours": 6,
+    "files": [
+      { "order": 0,  "path": "content/intro/odoo_introduction.rst",                        "title": "Introduction to Odoo",                    "lesson_type": "intro" },
+      { "order": 1,  "path": "content/intro/section_1_intro.rst",                          "title": "Section 1 Introduction: Odoo Essentials",  "lesson_type": "intro" },
+      { "order": 2,  "path": "content/applications/essentials/activities.rst",             "title": "Activities" },
+      { "order": 3,  "path": "content/applications/essentials/contacts.rst",               "title": "Contacts" },
+      { "order": 4,  "path": "content/applications/essentials/search.rst",                 "title": "Search & Filters" },
+      { "order": 5,  "path": "content/applications/essentials/reporting.rst",              "title": "Reporting" },
+      { "order": 6,  "path": "content/applications/essentials/export_import_data.rst",     "title": "Export & Import Data" },
+      { "order": 7,  "path": "content/applications/essentials/html_editor.rst",            "title": "HTML Editor" },
+      { "order": 8,  "path": "content/applications/essentials/in_app_purchase.rst",        "title": "In-App Purchase" },
+      { "order": 9,  "path": "content/applications/essentials/keyboard_shortcuts.rst",     "title": "Keyboard Shortcuts" },
+      { "order": 10, "path": "content/applications/essentials/property_fields.rst",        "title": "Property Fields" },
+      { "order": 11, "path": "content/applications/essentials/stages.rst",                 "title": "Stages" },
+      { "order": 12, "path": "content/applications/general/users.rst",                     "title": "Users & Access Rights" },
+      { "order": 13, "path": "content/applications/general/companies.rst",                 "title": "Companies" },
+      { "order": 14, "path": "content/applications/general/apps_modules.rst",              "title": "Apps & Modules" },
+      { "order": 15, "path": "content/applications/general/developer_mode.rst",            "title": "Developer Mode" },
+      { "order": 16, "path": "content/applications/general/email_communication.rst",       "title": "Email Communication" },
+      { "order": 17, "path": "content/applications/general/integrations.rst",              "title": "Integrations" },
+      { "order": 18, "path": "content/applications/general/iot.rst",                       "title": "IoT (Internet of Things)" },
+      { "order": 19, "path": "content/applications/studio/models_modules_apps.rst",        "title": "Studio: Models, Modules & Apps" },
+      { "order": 20, "path": "content/applications/studio/fields.rst",                     "title": "Studio: Fields" },
+      { "order": 21, "path": "content/applications/studio/views.rst",                      "title": "Studio: Views" },
+      { "order": 22, "path": "content/applications/studio/automated_actions.rst",          "title": "Studio: Automated Actions" },
+      { "order": 23, "path": "content/applications/studio/pdf_reports.rst",                "title": "Studio: PDF Reports" },
+      { "order": 24, "path": "content/applications/studio/approval_rules.rst",             "title": "Studio: Approval Rules" }
+    ]
+  },
+  {
+    "section_number": 2,
+    "section_name": "Finance",
+    "description": "Accounting, invoicing, expenses, payments, and fiscal localization",
+    "estimated_hours": 4,
+    "files": [
+      { "order": 0, "path": "content/intro/section_2_intro.rst",                           "title": "Section 2 Introduction: Finance",          "lesson_type": "intro" },
+      { "order": 1, "path": "content/applications/finance/accounting.rst",                 "title": "Accounting & Invoicing" },
+      { "order": 2, "path": "content/applications/finance/expenses.rst",                   "title": "Expenses" },
+      { "order": 3, "path": "content/applications/finance/payment_providers.rst",          "title": "Payment Providers" },
+      { "order": 4, "path": "content/applications/finance/fiscal_localizations.rst",       "title": "Fiscal Localizations" },
+      { "order": 5, "path": "content/applications/finance/esg.rst",                        "title": "ESG (Sustainability)" }
+    ]
+  },
+  {
+    "section_number": 3,
+    "section_name": "Sales",
+    "description": "CRM, quotations, sales orders, point of sale, subscriptions, and rental",
+    "estimated_hours": 3,
+    "files": [
+      { "order": 0, "path": "content/intro/section_3_intro.rst",                           "title": "Section 3 Introduction: Sales",            "lesson_type": "intro" },
+      { "order": 1, "path": "content/applications/sales/crm.rst",                          "title": "CRM" },
+      { "order": 2, "path": "content/applications/sales/sales.rst",                        "title": "Sales" },
+      { "order": 3, "path": "content/applications/sales/point_of_sale.rst",                "title": "Point of Sale" },
+      { "order": 4, "path": "content/applications/sales/subscriptions.rst",                "title": "Subscriptions" },
+      { "order": 5, "path": "content/applications/sales/rental.rst",                       "title": "Rental" }
+    ]
+  },
+  {
+    "section_number": 4,
+    "section_name": "Websites",
+    "description": "Website builder, eCommerce, eLearning, live chat, forum, and blog",
+    "estimated_hours": 3,
+    "files": [
+      { "order": 0, "path": "content/intro/section_4_intro.rst",                           "title": "Section 4 Introduction: Websites",         "lesson_type": "intro" },
+      { "order": 1, "path": "content/applications/websites/website.rst",                   "title": "Website Builder" },
+      { "order": 2, "path": "content/applications/websites/ecommerce.rst",                 "title": "eCommerce" },
+      { "order": 3, "path": "content/applications/websites/livechat.rst",                  "title": "Live Chat" },
+      { "order": 4, "path": "content/applications/websites/elearning.rst",                 "title": "eLearning" },
+      { "order": 5, "path": "content/applications/websites/forum.rst",                     "title": "Forum" },
+      { "order": 6, "path": "content/applications/websites/blog.rst",                      "title": "Blog" }
+    ]
+  },
+  {
+    "section_number": 5,
+    "section_name": "Supply Chain",
+    "description": "Inventory, purchase, manufacturing, barcode, quality, maintenance, repairs, and PLM",
+    "estimated_hours": 5,
+    "files": [
+      { "order": 0, "path": "content/intro/section_5_intro.rst",                           "title": "Section 5 Introduction: Supply Chain",     "lesson_type": "intro" },
+      { "order": 1, "path": "content/applications/inventory_and_mrp/inventory.rst",        "title": "Inventory" },
+      { "order": 2, "path": "content/applications/inventory_and_mrp/purchase.rst",         "title": "Purchase" },
+      { "order": 3, "path": "content/applications/inventory_and_mrp/manufacturing.rst",    "title": "Manufacturing" },
+      { "order": 4, "path": "content/applications/inventory_and_mrp/barcode.rst",          "title": "Barcode" },
+      { "order": 5, "path": "content/applications/inventory_and_mrp/quality.rst",          "title": "Quality" },
+      { "order": 6, "path": "content/applications/inventory_and_mrp/maintenance.rst",      "title": "Maintenance" },
+      { "order": 7, "path": "content/applications/inventory_and_mrp/repairs.rst",          "title": "Repairs" },
+      { "order": 8, "path": "content/applications/inventory_and_mrp/plm.rst",              "title": "Product Lifecycle Management (PLM)" }
+    ]
+  },
+  {
+    "section_number": 6,
+    "section_name": "Human Resources",
+    "description": "Employees, payroll, time off, recruitment, appraisals, attendances, and more",
+    "estimated_hours": 5,
+    "files": [
+      { "order": 0,  "path": "content/intro/section_6_intro.rst",                          "title": "Section 6 Introduction: Human Resources",  "lesson_type": "intro" },
+      { "order": 1,  "path": "content/applications/hr/employees.rst",                      "title": "Employees" },
+      { "order": 2,  "path": "content/applications/hr/payroll.rst",                        "title": "Payroll" },
+      { "order": 3,  "path": "content/applications/hr/time_off.rst",                       "title": "Time Off" },
+      { "order": 4,  "path": "content/applications/hr/recruitment.rst",                    "title": "Recruitment" },
+      { "order": 5,  "path": "content/applications/hr/appraisals.rst",                     "title": "Appraisals" },
+      { "order": 6,  "path": "content/applications/hr/attendances.rst",                    "title": "Attendances" },
+      { "order": 7,  "path": "content/applications/hr/referrals.rst",                      "title": "Referrals" },
+      { "order": 8,  "path": "content/applications/hr/fleet.rst",                          "title": "Fleet" },
+      { "order": 9,  "path": "content/applications/hr/frontdesk.rst",                      "title": "Front Desk" },
+      { "order": 10, "path": "content/applications/hr/lunch.rst",                          "title": "Lunch" }
+    ]
+  },
+  {
+    "section_number": 7,
+    "section_name": "Marketing",
+    "description": "Email marketing, SMS, social media, events, marketing automation, and surveys",
+    "estimated_hours": 3,
+    "files": [
+      { "order": 0, "path": "content/intro/section_7_intro.rst",                           "title": "Section 7 Introduction: Marketing",        "lesson_type": "intro" },
+      { "order": 1, "path": "content/applications/marketing/email_marketing.rst",          "title": "Email Marketing" },
+      { "order": 2, "path": "content/applications/marketing/sms_marketing.rst",            "title": "SMS Marketing" },
+      { "order": 3, "path": "content/applications/marketing/social_marketing.rst",         "title": "Social Marketing" },
+      { "order": 4, "path": "content/applications/marketing/events.rst",                   "title": "Events" },
+      { "order": 5, "path": "content/applications/marketing/marketing_automation.rst",     "title": "Marketing Automation" },
+      { "order": 6, "path": "content/applications/marketing/surveys.rst",                  "title": "Surveys" }
+    ]
+  },
+  {
+    "section_number": 8,
+    "section_name": "Services",
+    "description": "Project management, timesheets, helpdesk, field service, and planning",
+    "estimated_hours": 3,
+    "files": [
+      { "order": 0, "path": "content/intro/section_8_intro.rst",                           "title": "Section 8 Introduction: Services",         "lesson_type": "intro" },
+      { "order": 1, "path": "content/applications/services/project.rst",                   "title": "Project" },
+      { "order": 2, "path": "content/applications/services/timesheets.rst",                "title": "Timesheets" },
+      { "order": 3, "path": "content/applications/services/helpdesk.rst",                  "title": "Helpdesk" },
+      { "order": 4, "path": "content/applications/services/field_service.rst",             "title": "Field Service" },
+      { "order": 5, "path": "content/applications/services/planning.rst",                  "title": "Planning" }
+    ]
+  },
+  {
+    "section_number": 9,
+    "section_name": "Productivity",
+    "description": "Discuss, calendar, documents, sign, knowledge, spreadsheet, AI, and more",
+    "estimated_hours": 5,
+    "files": [
+      { "order": 0,  "path": "content/intro/section_9_intro.rst",                          "title": "Section 9 Introduction: Productivity",     "lesson_type": "intro" },
+      { "order": 1,  "path": "content/applications/productivity/discuss.rst",              "title": "Discuss" },
+      { "order": 2,  "path": "content/applications/productivity/calendar.rst",             "title": "Calendar" },
+      { "order": 3,  "path": "content/applications/productivity/knowledge.rst",            "title": "Knowledge" },
+      { "order": 4,  "path": "content/applications/productivity/documents.rst",            "title": "Documents" },
+      { "order": 5,  "path": "content/applications/productivity/sign.rst",                 "title": "Sign" },
+      { "order": 6,  "path": "content/applications/productivity/spreadsheet.rst",          "title": "Spreadsheet" },
+      { "order": 7,  "path": "content/applications/productivity/to_do.rst",                "title": "To-Do" },
+      { "order": 8,  "path": "content/applications/productivity/appointments.rst",         "title": "Appointments" },
+      { "order": 9,  "path": "content/applications/productivity/dashboards.rst",           "title": "Dashboards" },
+      { "order": 10, "path": "content/applications/productivity/data_cleaning.rst",        "title": "Data Cleaning" },
+      { "order": 11, "path": "content/applications/productivity/ai.rst",                   "title": "Odoo AI" },
+      { "order": 12, "path": "content/applications/productivity/whatsapp.rst",             "title": "WhatsApp" },
+      { "order": 13, "path": "content/applications/productivity/voip.rst",                 "title": "VoIP" }
+    ]
+  }
+]
