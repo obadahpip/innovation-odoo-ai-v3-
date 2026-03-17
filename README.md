@@ -1,75 +1,75 @@
-# Phase 2 — Landing Page & Onboarding
+# Phase 3 — Dashboard Improvements
 
 ---
 
 ## Files included
 
-| File in this zip                                            | Action            | Replace in project                                    |
-|-------------------------------------------------------------|-------------------|-------------------------------------------------------|
-| `frontend/src/pages/LandingPage.jsx`                        | **New file**      | `frontend/src/pages/LandingPage.jsx`                  |
-| `frontend/src/pages/onboarding/WelcomePage.jsx`             | **New file**      | `frontend/src/pages/onboarding/WelcomePage.jsx`       |
-| `frontend/src/App.jsx`                                      | Replace           | `frontend/src/App.jsx`                                |
-| `frontend/src/pages/auth/VerifyOtpPage.jsx`                 | Replace           | `frontend/src/pages/auth/VerifyOtpPage.jsx`           |
-| `backend/accounts/models.py`                                | Replace           | `backend/accounts/models.py`                          |
-| `backend/accounts/migrations/0002_user_onboarding_fields.py`| **New file**      | `backend/accounts/migrations/`                        |
-| `backend/accounts/serializers.py`                           | Replace           | `backend/accounts/serializers.py`                     |
-| `backend/accounts/views.py`                                 | Replace           | `backend/accounts/views.py`                           |
-| `backend/accounts/urls.py`                                  | Replace           | `backend/accounts/urls.py`                            |
+| File in this zip                                        | Action       | Replace in project                                      |
+|---------------------------------------------------------|--------------|---------------------------------------------------------|
+| `frontend/src/pages/dashboard/DashboardPage.jsx`        | Replace      | `frontend/src/pages/dashboard/DashboardPage.jsx`        |
+| `frontend/src/pages/certificate/CertificatePage.jsx`    | **New file** | `frontend/src/pages/certificate/CertificatePage.jsx`    |
+| `frontend/src/App.jsx`                                  | Replace      | `frontend/src/App.jsx`                                  |
+| `backend/progress/models.py`                            | Replace      | `backend/progress/models.py`                            |
+| `backend/progress/migrations/0002_certificate.py`       | **New file** | `backend/progress/migrations/`                          |
+| `backend/progress/views.py`                             | Replace      | `backend/progress/views.py`                             |
+| `backend/progress/urls.py`                              | Replace      | `backend/progress/urls.py`                              |
 
 ---
 
 ## What changed
 
-### 2.1 — Public Landing Page (`/`)
+### 3.1 Dashboard Layout Upgrade
+- Widened to `max-w-4xl`
+- Persistent left sidebar (240px) with:
+  - User avatar + overall progress ring + lesson count
+  - All 9 sections as nav items with icons, completion counts, green ✓ when done
+  - Quick links: My Plan, My Certificate (visible at 100%)
+- On mobile: sidebar hidden behind hamburger menu
 
-- `App.jsx` — the `/` route now renders `<LandingPage />` instead of redirecting to `/login`
-- `LandingPage.jsx` — full marketing page with:
-  - Sticky nav with Sign in / Get started buttons
-  - Hero section (gradient, headline, CTAs)
-  - Stats bar (81 Lessons · 9 Sections · 57 Odoo Apps · AI-Powered)
-  - 9 section cards with icons, lesson counts, and descriptions
-  - How it works (3-step flow)
-  - Testimonials (3 placeholders — replace with real ones later)
-  - CTA banner
-  - Footer
+### 3.2 Search & Filter
+- Search bar with real-time filtering across all 81 lesson titles
+- `Ctrl/Cmd + K` focuses the search bar
+- Filter chips: All / Not Started / In Progress / Completed / Intro Only
+- "No results" empty state with a clear-filters button
 
-### 2.2 — Post-Registration Onboarding Flow
+### 3.3 Milestone Notifications
+- Section completion: toast fires once per session when a section hits 100%
+- Progress milestones (25%, 50%, 75%, 100%): animated banner card with dismiss button
+- Confetti animation fires on section completion and milestones
+- Skeleton loading state while dashboard data loads
 
-- `VerifyOtpPage.jsx` — after successful OTP verification, redirects to `/welcome` (was `/dashboard`)
-- `WelcomePage.jsx` — 3-step wizard:
-  1. Role selector (Developer / Accountant / Manager / Student / Other)
-  2. Odoo experience (None / Some / Advanced)
-  3. Learning goal (free text + 6 quick-pick suggestions)
-  On completion → `POST /api/auth/onboarding/` → redirect to `/dashboard`
-- `App.jsx` — `/welcome` route added (protected)
-
-### Backend
-
-- `models.py` — 4 new fields on `User`: `role`, `experience`, `learning_goal`, `onboarding_done`
-- `migrations/0002_...` — Django migration for the new fields
-- `serializers.py` — `OnboardingSerializer` added; `UserProfileSerializer` now exposes onboarding fields
-- `views.py` — `onboarding()` view added (`POST /api/auth/onboarding/`)
-- `urls.py` — `/onboarding/` path added
+### 3.4 Completion Certificate (`/certificate`)
+- Locked behind server-side 100% completion check
+- Displays: full name, course title, issue date, total hours, certificate ID
+- Download as PDF using `html2canvas` + `jsPDF` (loaded lazily — no bundle cost unless used)
+- Certificate ID is a UUID generated server-side, stored in the `Certificate` model
+- Link shown on dashboard header and sidebar at 100% progress
 
 ---
 
-## After applying files
+## Install new frontend packages
 
-Run the migration:
+```bash
+cd frontend
+npm install html2canvas jspdf
+```
+
+## Run migration
+
 ```bash
 cd backend
 python manage.py migrate
 ```
 
-That's it — no new packages required.
-
 ---
 
 ## Quick checklist
 
-- [ ] All 9 files copied to correct paths
-- [ ] `python manage.py migrate` run successfully
-- [ ] `GET /` shows the landing page (not a login redirect)
-- [ ] Registering a new account → OTP verify → lands on `/welcome` wizard
-- [ ] Completing wizard → lands on `/dashboard`
-- [ ] Existing users logging in → still go straight to `/dashboard`
+- [ ] All 7 files copied to correct paths
+- [ ] `npm install html2canvas jspdf` run in `frontend/`
+- [ ] `python manage.py migrate` run in `backend/`
+- [ ] Dashboard shows sidebar and search bar
+- [ ] Ctrl+K focuses search
+- [ ] Filter chips work
+- [ ] `/certificate` redirects away if progress < 100%
+- [ ] PDF download works at 100% completion
