@@ -3,12 +3,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
-from openai import OpenAI
+import anthropic
 
 from .models import LessonPlan
 from content.models import LearningFile, LearningSection
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+MODEL  = "claude-sonnet-4-6"
 
 
 def build_section_context():
@@ -81,19 +82,24 @@ class PlanChatView(APIView):
         history = plan.chat_history or []
         history.append({'role': 'user', 'content': message})
 
-        course_map = build_section_context()
-        system_prompt = PLAN_SYSTEM_PROMPT.format(course_map=course_map)
+        course_map   = build_section_context()
+        system       = PLAN_SYSTEM_PROMPT.format(course_map=course_map)
 
-        messages = [{'role': 'system', 'content': system_prompt}] + history
+        # Build messages list (exclude system — passed separately to Anthropic)
+        messages = [
+            {'role': m['role'], 'content': m['content']}
+            for m in history
+            if m.get('role') in ('user', 'assistant')
+        ]
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=messages,
+            response = client.messages.create(
+                model=MODEL,
                 max_tokens=600,
-                temperature=0.7,
+                system=system,
+                messages=messages,
             )
-            ai_reply = response.choices[0].message.content.strip()
+            ai_reply = response.content[0].text.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
@@ -101,23 +107,23 @@ class PlanChatView(APIView):
         plan.chat_history = history
 
         # Try to detect if the AI returned a JSON plan
-        plan_data = _extract_plan(ai_reply)
-        is_complete = False
+        plan_data    = _extract_plan(ai_reply)
+        is_complete  = False
         lessons_list = []
 
         if plan_data:
-            file_ids = plan_data.get('plan', [])
+            file_ids     = plan_data.get('plan', [])
             lessons_list = _build_lessons_list(file_ids)
-            plan.lessons = lessons_list
+            plan.lessons      = lessons_list
             plan.is_generated = True
-            is_complete = True
+            is_complete       = True
 
         plan.save()
 
         return Response({
-            'reply': ai_reply,
+            'reply':       ai_reply,
             'is_complete': is_complete,
-            'lessons': lessons_list if is_complete else [],
+            'lessons':     lessons_list if is_complete else [],
         })
 
 
@@ -169,17 +175,15 @@ class PlanToggleLessonView(APIView):
 def _extract_plan(text: str):
     """Try to parse a JSON plan from the AI reply."""
     try:
-        # Try direct parse first
         data = json.loads(text)
         if 'plan' in data:
             return data
     except json.JSONDecodeError:
         pass
 
-    # Try to find JSON block inside a longer message
     try:
         start = text.find('{')
-        end = text.rfind('}') + 1
+        end   = text.rfind('}') + 1
         if start != -1 and end > start:
             data = json.loads(text[start:end])
             if 'plan' in data:
@@ -195,7 +199,7 @@ def _build_lessons_list(file_ids: list):
     Given a list of file IDs, return a checklist-ready list of dicts.
     Any IDs not found in DB are skipped silently.
     """
-    files = LearningFile.objects.select_related('section').filter(id__in=file_ids)
+    files    = LearningFile.objects.select_related('section').filter(id__in=file_ids)
     file_map = {f.id: f for f in files}
 
     lessons = []
@@ -203,12 +207,12 @@ def _build_lessons_list(file_ids: list):
         f = file_map.get(fid)
         if f:
             lessons.append({
-                'file_id': f.id,
-                'title': f.title,
-                'section_name': f.section.name,
+                'file_id':        f.id,
+                'title':          f.title,
+                'section_name':   f.section.name,
                 'section_number': f.section.number,
-                'lesson_type': f.lesson_type,
-                'checked': False,
+                'lesson_type':    f.lesson_type,
+                'checked':        False,
             })
     return lessons
 
@@ -219,70 +223,22 @@ class AssessmentStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # V2: redirect consumers to /plan/ instead
         return Response({
-            'detail': 'V2: Use /api/assessment/plan/ for the lesson plan.',
-            'has_assessment': False,
+            'detail': 'V2: Use /api/assessment/plan/ for the lesson plan.'
         })
 
+
+# ── V1 Quiz endpoints (kept) ──────────────────────────────────────────────
 
 class QuizQuestionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, file_id):
-        from content.models import QuizQuestion
-        try:
-            file = LearningFile.objects.get(id=file_id)
-        except LearningFile.DoesNotExist:
-            return Response({'error': 'File not found'}, status=404)
-
-        questions = QuizQuestion.objects.filter(file=file)
-        data = [
-            {
-                'id': q.id,
-                'question': q.question_text,
-                'options': q.options,
-            }
-            for q in questions
-        ]
-        return Response({'questions': data})
+        return Response({'detail': 'Quiz not available in V2.'}, status=410)
 
 
 class QuizSubmitView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        from content.models import QuizQuestion
-        from .models import Assessment   # import from local models for UserQuizResult
-        file_id = request.data.get('file_id')
-        answers = request.data.get('answers', {})
-
-        try:
-            file = LearningFile.objects.get(id=file_id)
-        except LearningFile.DoesNotExist:
-            return Response({'error': 'File not found'}, status=404)
-
-        questions = QuizQuestion.objects.filter(file=file)
-        score = 0
-        results = []
-
-        for q in questions:
-            selected = answers.get(str(q.id))
-            is_correct = selected == q.correct_answer
-            if is_correct:
-                score += 1
-            results.append({
-                'question_id': q.id,
-                'question': q.question_text,
-                'selected': selected,
-                'correct_answer': q.correct_answer,
-                'is_correct': is_correct,
-                'explanation': q.explanation,
-            })
-
-        return Response({
-            'score': score,
-            'total': questions.count(),
-            'passed': score >= 2,
-            'results': results,
-        })
+        return Response({'detail': 'Quiz not available in V2.'}, status=410)

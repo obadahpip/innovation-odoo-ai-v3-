@@ -8,11 +8,14 @@ export default {
     extend: {
       colors: {
         brand: {
-          purple: '#714B67',
-          'purple-dark': '#5a3a52',
-          'purple-light': '#8a6380',
-        }
-      }
+          DEFAULT: '#714B67',
+          dark: '#5a3a52',
+          light: '#8a6380',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
     },
   },
   plugins: [],

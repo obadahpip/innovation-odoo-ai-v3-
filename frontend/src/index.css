@@ -2,22 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Brand CSS variable ─────────────────────────────────────────────────────── */
+:root {
+  --color-brand: #714B67;
+  --color-brand-dark: #5a3a52;
+  --color-brand-light: #8a6380;
+}
+
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 }
 
 @layer components {
+  /* ── Buttons ────────────────────────────────────────────────────────────── */
   .btn-primary {
-    @apply bg-[#714B67] hover:bg-[#5a3a52] text-white font-medium py-2.5 px-6 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-brand hover:bg-brand-dark text-white font-medium py-2.5 px-6 rounded-lg
+           transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-[#714B67] border border-[#714B67] font-medium py-2.5 px-6 rounded-lg transition-colors duration-200;
+    @apply bg-white hover:bg-gray-50 text-brand border border-brand font-medium py-2.5 px-6
+           rounded-lg transition-colors duration-200;
   }
+
+  /* ── Form input ─────────────────────────────────────────────────────────── */
   .input-field {
-    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#714B67] focus:border-transparent outline-none transition-all;
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg
+           focus:ring-2 focus:ring-brand focus:border-transparent outline-none transition-all;
   }
+
+  /* ── Card ───────────────────────────────────────────────────────────────── */
   .card {
     @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
   }

@@ -2,11 +2,26 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
-from openai import OpenAI
+import anthropic
 
 from .models import LearningFile, LessonSlide
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+MODEL  = "claude-sonnet-4-6"
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _chat(system: str, messages: list, max_tokens: int = 400) -> str:
+    """Single helper that calls the Anthropic Messages API."""
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=max_tokens,
+        system=system,
+        messages=messages,
+    )
+    return response.content[0].text.strip()
+
 
 # ── Slide list ────────────────────────────────────────────────────────────────
 
@@ -82,24 +97,19 @@ class SlideSimplifyView(APIView):
         except LessonSlide.DoesNotExist:
             return Response({'detail': 'Slide not found.'}, status=404)
 
-        prompt = f"""You are an expert Odoo tutor. Simplify the following lesson slide content \
-so that a complete beginner can understand it easily. Use plain language, short sentences, \
-and a friendly tone. Keep it concise (max 150 words). Do not use jargon without explanation.
-
-Slide title: {slide.title}
-Slide content:
-{slide.content}
-
-Provide only the simplified explanation — no preamble or meta-commentary."""
+        system = (
+            "You are an expert Odoo tutor. Simplify lesson slide content so that a complete "
+            "beginner can understand it easily. Use plain language, short sentences, and a "
+            "friendly tone. Keep it concise (max 150 words). Do not use jargon without explanation. "
+            "Provide only the simplified explanation — no preamble or meta-commentary."
+        )
+        user_prompt = (
+            f"Slide title: {slide.title}\n"
+            f"Slide content:\n{slide.content}"
+        )
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=[{'role': 'user', 'content': prompt}],
-                max_tokens=300,
-                temperature=0.5,
-            )
-            simplified = response.choices[0].message.content.strip()
+            simplified = _chat(system, [{'role': 'user', 'content': user_prompt}], max_tokens=300)
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
@@ -119,7 +129,7 @@ class SlideAskView(APIView):
     def post(self, request):
         slide_id = request.data.get('slide_id')
         question = request.data.get('question', '').strip()
-        history = request.data.get('history', [])
+        history  = request.data.get('history', [])
 
         if not slide_id or not question:
             return Response({'detail': 'slide_id and question are required.'}, status=400)
@@ -129,30 +139,24 @@ class SlideAskView(APIView):
         except LessonSlide.DoesNotExist:
             return Response({'detail': 'Slide not found.'}, status=404)
 
-        system_prompt = f"""You are an expert Odoo tutor helping a student understand a lesson slide.
-Answer the student's question clearly and concisely. Stay focused on the slide context.
-If the question is unrelated to the slide, gently redirect them.
+        system = (
+            f"You are an expert Odoo tutor helping a student understand a lesson slide.\n"
+            f"Answer the student's question clearly and concisely. Stay focused on the slide context.\n"
+            f"If the question is unrelated to the slide, gently redirect them.\n\n"
+            f"Lesson: {slide.file.title}\n"
+            f"Section: {slide.file.section.name}\n"
+            f"Slide {slide.slide_number}: {slide.title}\n"
+            f"Slide content: {slide.content[:800]}"
+        )
 
-Lesson: {slide.file.title}
-Section: {slide.file.section.name}
-Slide {slide.slide_number}: {slide.title}
-Slide content: {slide.content[:800]}"""
-
-        messages = [{'role': 'system', 'content': system_prompt}]
-        # Include last 4 turns of history for context
+        messages = []
         for msg in history[-4:]:
             if msg.get('role') in ('user', 'assistant'):
                 messages.append({'role': msg['role'], 'content': msg['content']})
         messages.append({'role': 'user', 'content': question})
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=messages,
-                max_tokens=400,
-                temperature=0.7,
-            )
-            answer = response.choices[0].message.content.strip()
+            answer = _chat(system, messages, max_tokens=400)
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
@@ -166,9 +170,6 @@ class GlobalAIView(APIView):
     POST /api/content/ai/chat/
     Body: { message: str, history: [...] }
     Returns: { reply: str }
-
-    Course-concierge AI: answers questions about the platform,
-    recommends lessons, explains what topics are covered.
     """
     permission_classes = [IsAuthenticated]
 
@@ -179,7 +180,6 @@ class GlobalAIView(APIView):
         if not message:
             return Response({'detail': 'message is required.'}, status=400)
 
-        # Build section summary for context
         from .models import LearningSection
         sections = LearningSection.objects.prefetch_related('files').all()
         section_summary = '\n'.join([
@@ -187,31 +187,25 @@ class GlobalAIView(APIView):
             for s in sections
         ])
 
-        system_prompt = f"""You are a helpful AI assistant for an Odoo learning platform called Innovation Odoo AI.
-Your role is to help users navigate the course, understand what topics are covered, recommend lessons, \
-and answer general questions about Odoo.
+        system = (
+            "You are a helpful AI assistant for an Odoo learning platform called Innovation Odoo AI.\n"
+            "Your role is to help users navigate the course, understand what topics are covered, "
+            "recommend lessons, and answer general questions about Odoo.\n\n"
+            f"The platform has 81 lessons organized into 9 sections:\n{section_summary}\n\n"
+            "Be concise, friendly, and helpful. If a user asks about a specific Odoo feature, "
+            "tell them which section and lesson covers it. If they ask which lesson to start with, "
+            "ask about their role and recommend accordingly.\n"
+            "Do not answer questions unrelated to Odoo or this course."
+        )
 
-The platform has 91 lessons organized into 9 sections:
-{section_summary}
-
-Be concise, friendly, and helpful. If a user asks about a specific Odoo feature, tell them which section \
-and lesson covers it. If they ask which lesson to start with, ask about their role and recommend accordingly.
-Do not answer questions unrelated to Odoo or this course."""
-
-        messages = [{'role': 'system', 'content': system_prompt}]
+        messages = []
         for msg in history[-6:]:
             if msg.get('role') in ('user', 'assistant'):
                 messages.append({'role': msg['role'], 'content': msg['content']})
         messages.append({'role': 'user', 'content': message})
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=messages,
-                max_tokens=400,
-                temperature=0.7,
-            )
-            reply = response.choices[0].message.content.strip()
+            reply = _chat(system, messages, max_tokens=400)
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
@@ -239,28 +233,24 @@ class TutorChatView(APIView):
         if file_id:
             try:
                 file = LearningFile.objects.select_related('section').get(id=file_id)
-                context = f"Lesson: {file.title}, Section: {file.section.name}"
+                context = f"Lesson: {file.title}, Section: {file.section.name}\n"
             except LearningFile.DoesNotExist:
                 pass
 
-        system_prompt = f"""You are an expert Odoo tutor. Help the student understand the current lesson.
-{context}
-Be concise, clear, and encouraging. Max 200 words per reply."""
+        system = (
+            f"You are an expert Odoo tutor. Help the student understand the current lesson.\n"
+            f"{context}"
+            "Be concise, clear, and encouraging. Max 200 words per reply."
+        )
 
-        messages = [{'role': 'system', 'content': system_prompt}]
+        messages = []
         for msg in history[-6:]:
             if msg.get('role') in ('user', 'assistant'):
                 messages.append({'role': msg['role'], 'content': msg['content']})
         messages.append({'role': 'user', 'content': message})
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=messages,
-                max_tokens=400,
-                temperature=0.7,
-            )
-            reply = response.choices[0].message.content.strip()
+            reply = _chat(system, messages, max_tokens=400)
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
