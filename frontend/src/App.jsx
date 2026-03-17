@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Public
 import LandingPage from './pages/LandingPage';
@@ -38,13 +39,23 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Onboarding */}
-        <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
+        <Route path="/welcome" element={
+          <ProtectedRoute><ErrorBoundary><WelcomePage /></ErrorBoundary></ProtectedRoute>
+        } />
 
-        {/* Protected app */}
-        <Route path="/dashboard"      element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="/course/:fileId" element={<ProtectedRoute><CoursePage /></ProtectedRoute>} />
-        <Route path="/plan"           element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
-        <Route path="/certificate"    element={<ProtectedRoute><CertificatePage /></ProtectedRoute>} />
+        {/* Protected app — all wrapped in ErrorBoundary */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute><ErrorBoundary><DashboardPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/course/:fileId" element={
+          <ProtectedRoute><ErrorBoundary><CoursePage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/plan" element={
+          <ProtectedRoute><ErrorBoundary><PlanPage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/certificate" element={
+          <ProtectedRoute><ErrorBoundary><CertificatePage /></ErrorBoundary></ProtectedRoute>
+        } />
 
         {/* Errors */}
         <Route path="/500" element={<ServerError />} />
