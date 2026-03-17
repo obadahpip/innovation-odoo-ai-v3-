@@ -1,59 +1,75 @@
-# Phase 1 — Drop-in Files (OpenAI kept as-is)
-
-> Task 1.2 (AI migration) is skipped — OpenAI remains unchanged.
+# Phase 2 — Landing Page & Onboarding
 
 ---
 
 ## Files included
 
-| File in this zip                          | Replace in project                    |
-|-------------------------------------------|---------------------------------------|
-| `frontend/index.html`                     | `frontend/index.html`                 |
-| `frontend/public/favicon.svg`             | `frontend/public/favicon.svg` *(new)* |
-| `frontend/tailwind.config.js`             | `frontend/tailwind.config.js`         |
-| `frontend/src/index.css`                  | `frontend/src/index.css`              |
-| `backend/core/settings_phase1_patch.py`   | **Read and apply manually** (below)   |
+| File in this zip                                            | Action            | Replace in project                                    |
+|-------------------------------------------------------------|-------------------|-------------------------------------------------------|
+| `frontend/src/pages/LandingPage.jsx`                        | **New file**      | `frontend/src/pages/LandingPage.jsx`                  |
+| `frontend/src/pages/onboarding/WelcomePage.jsx`             | **New file**      | `frontend/src/pages/onboarding/WelcomePage.jsx`       |
+| `frontend/src/App.jsx`                                      | Replace           | `frontend/src/App.jsx`                                |
+| `frontend/src/pages/auth/VerifyOtpPage.jsx`                 | Replace           | `frontend/src/pages/auth/VerifyOtpPage.jsx`           |
+| `backend/accounts/models.py`                                | Replace           | `backend/accounts/models.py`                          |
+| `backend/accounts/migrations/0002_user_onboarding_fields.py`| **New file**      | `backend/accounts/migrations/`                        |
+| `backend/accounts/serializers.py`                           | Replace           | `backend/accounts/serializers.py`                     |
+| `backend/accounts/views.py`                                 | Replace           | `backend/accounts/views.py`                           |
+| `backend/accounts/urls.py`                                  | Replace           | `backend/accounts/urls.py`                            |
 
 ---
 
-## 1.1 — `index.html`
-- Title: `"frontend"` → `"Innovation Odoo AI"`
-- Added `<meta name="description">`
-- Added Open Graph tags (`og:title`, `og:description`, `og:image`)
-- Added Inter font via Google Fonts
-- Favicon now points to `/favicon.svg`
+## What changed
 
-## 1.2 — `public/favicon.svg` (new file)
-Purple rounded square with white **O** — the brand icon.  
-You can delete `public/vite.svg`.
+### 2.1 — Public Landing Page (`/`)
 
-## 1.3 — `tailwind.config.js` + `src/index.css`
-Brand color is now defined **once**:
-- Tailwind classes: `bg-brand`, `text-brand`, `border-brand`, `bg-brand-dark`
-- CSS variable: `--color-brand: #714B67` (available for inline styles if needed)
+- `App.jsx` — the `/` route now renders `<LandingPage />` instead of redirecting to `/login`
+- `LandingPage.jsx` — full marketing page with:
+  - Sticky nav with Sign in / Get started buttons
+  - Hero section (gradient, headline, CTAs)
+  - Stats bar (81 Lessons · 9 Sections · 57 Odoo Apps · AI-Powered)
+  - 9 section cards with icons, lesson counts, and descriptions
+  - How it works (3-step flow)
+  - Testimonials (3 placeholders — replace with real ones later)
+  - CTA banner
+  - Footer
 
-**Remaining JSX work:** search your project for `#714B67` and `#5a3a52` and replace:
-- `style={{ backgroundColor: '#714B67' }}` → `className="bg-brand"`
-- `style={{ color: '#714B67' }}` → `className="text-brand"`
-- `style={{ borderTopColor: '#714B67' }}` → `className="border-brand"`
-- `const PURPLE = "#714B67"` in `CoursePage.jsx` → use `bg-brand` directly
+### 2.2 — Post-Registration Onboarding Flow
 
-## 1.4 — Rate limiting (`settings_phase1_patch.py`)
-Open your `backend/core/settings.py` and replace the `REST_FRAMEWORK` dict
-with the one in this patch file. It adds:
-```python
-'DEFAULT_THROTTLE_CLASSES': [...],
-'DEFAULT_THROTTLE_RATES': { 'anon': '20/hour', 'user': '60/hour' }
+- `VerifyOtpPage.jsx` — after successful OTP verification, redirects to `/welcome` (was `/dashboard`)
+- `WelcomePage.jsx` — 3-step wizard:
+  1. Role selector (Developer / Accountant / Manager / Student / Other)
+  2. Odoo experience (None / Some / Advanced)
+  3. Learning goal (free text + 6 quick-pick suggestions)
+  On completion → `POST /api/auth/onboarding/` → redirect to `/dashboard`
+- `App.jsx` — `/welcome` route added (protected)
+
+### Backend
+
+- `models.py` — 4 new fields on `User`: `role`, `experience`, `learning_goal`, `onboarding_done`
+- `migrations/0002_...` — Django migration for the new fields
+- `serializers.py` — `OnboardingSerializer` added; `UserProfileSerializer` now exposes onboarding fields
+- `views.py` — `onboarding()` view added (`POST /api/auth/onboarding/`)
+- `urls.py` — `/onboarding/` path added
+
+---
+
+## After applying files
+
+Run the migration:
+```bash
+cd backend
+python manage.py migrate
 ```
-No other changes to settings are needed.
+
+That's it — no new packages required.
 
 ---
 
 ## Quick checklist
 
-- [ ] `frontend/index.html` replaced
-- [ ] `frontend/public/favicon.svg` added, `vite.svg` deleted
-- [ ] `frontend/tailwind.config.js` replaced
-- [ ] `frontend/src/index.css` replaced
-- [ ] `REST_FRAMEWORK` dict in `settings.py` updated with throttle config
-- [ ] Project-wide find-replace of hardcoded `#714B67` hex in JSX files
+- [ ] All 9 files copied to correct paths
+- [ ] `python manage.py migrate` run successfully
+- [ ] `GET /` shows the landing page (not a login redirect)
+- [ ] Registering a new account → OTP verify → lands on `/welcome` wizard
+- [ ] Completing wizard → lands on `/dashboard`
+- [ ] Existing users logging in → still go straight to `/dashboard`

@@ -13,7 +13,7 @@ export default function VerifyOtpPage() {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+  const [timeLeft, setTimeLeft] = useState(600);       // 10 minutes
   const [canResend, setCanResend] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(60);
   const inputRefs = useRef([]);
@@ -22,7 +22,7 @@ export default function VerifyOtpPage() {
     if (!email) navigate('/register');
   }, [email, navigate]);
 
-  // 10 minute expiry countdown
+  // 10-minute expiry countdown
   useEffect(() => {
     if (timeLeft <= 0) return;
     const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -31,10 +31,7 @@ export default function VerifyOtpPage() {
 
   // 60s resend cooldown
   useEffect(() => {
-    if (resendCooldown <= 0) {
-      setCanResend(true);
-      return;
-    }
+    if (resendCooldown <= 0) { setCanResend(true); return; }
     const t = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
     return () => clearTimeout(t);
   }, [resendCooldown]);
@@ -79,44 +76,42 @@ export default function VerifyOtpPage() {
       const res = await authApi.verifyOtp({ email, code: fullCode });
       login(res.data.tokens, res.data.user);
       toast.success('Email verified! Welcome aboard.');
-      navigate('/assessment');
+      // ── Phase 2: redirect new users to onboarding wizard ──────────────
+      navigate('/welcome');
     } catch (err) {
-      const msg = err.response?.data?.error || 'Invalid or expired code';
+      const msg = err.response?.data?.error || 'Invalid or expired code. Please try again.';
       toast.error(msg);
-      setCode(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    if (!canResend) return;
+    if (!canResend || resending) return;
     setResending(true);
     try {
       await authApi.resendOtp({ email });
-      toast.success('New code sent! Check your email.');
-      setTimeLeft(600);
-      setCanResend(false);
+      toast.success('A new code has been sent to your email.');
       setResendCooldown(60);
-      setCode(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
-    } catch (err) {
-      toast.error('Failed to resend code. Try again.');
+      setCanResend(false);
+      setTimeLeft(600);
+    } catch {
+      toast.error('Could not resend the code. Please try again.');
     } finally {
       setResending(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#714B67] to-[#5a3a52] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">📧</div>
+          <div className="w-14 h-14 bg-brand/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">📧</span>
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">Check your email</h1>
-          <p className="text-gray-500 mt-2">
-            We sent a 6-digit code to<br />
-            <span className="font-medium text-gray-700">{email}</span>
+          <p className="text-gray-500 mt-2 text-sm">
+            We sent a 6-digit code to <strong className="text-gray-700">{email}</strong>
           </p>
         </div>
 
@@ -132,34 +127,33 @@ export default function VerifyOtpPage() {
                 value={digit}
                 onChange={(e) => handleDigit(i, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(i, e)}
-                className="w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-lg focus:border-[#714B67] focus:ring-2 focus:ring-[#714B67]/20 outline-none transition-all"
+                className="w-11 h-12 text-center text-xl font-bold border-2 border-gray-300 rounded-lg
+                           focus:border-brand focus:outline-none transition-colors"
               />
             ))}
           </div>
 
-          <div className="text-center text-sm text-gray-500 mb-4">
-            Code expires in <span className={`font-mono font-medium ${timeLeft < 60 ? 'text-red-500' : 'text-gray-700'}`}>{formatTime(timeLeft)}</span>
+          <div className="text-center text-xs text-gray-400 mb-6">
+            Code expires in <span className="font-semibold text-gray-600">{formatTime(timeLeft)}</span>
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Verifying…' : 'Verify email'}
+            {loading ? 'Verifying...' : 'Verify email'}
           </button>
         </form>
 
-        <div className="text-center mt-4">
-          {canResend ? (
-            <button
-              onClick={handleResend}
-              disabled={resending}
-              className="text-[#714B67] text-sm font-medium hover:underline disabled:opacity-50"
-            >
-              {resending ? 'Sending…' : 'Resend code'}
-            </button>
-          ) : (
-            <p className="text-sm text-gray-400">
-              Resend available in {resendCooldown}s
-            </p>
-          )}
+        <div className="text-center mt-5">
+          <button
+            onClick={handleResend}
+            disabled={!canResend || resending}
+            className="text-sm text-brand hover:underline disabled:text-gray-400 disabled:no-underline"
+          >
+            {resending
+              ? 'Sending...'
+              : canResend
+              ? 'Resend code'
+              : `Resend in ${resendCooldown}s`}
+          </button>
         </div>
       </div>
     </div>
