@@ -9,7 +9,7 @@ const AVATARS = ['🧑', '👩', '👨', '🧑‍💻', '👩‍💻', '👨‍�
 
 function Section({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-4">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 mb-4">
       <h2 className="text-base font-semibold text-gray-900 mb-5">{title}</h2>
       {children}
     </div>
@@ -17,25 +17,21 @@ function Section({ title, children }) {
 }
 
 export default function ProfilePage() {
-  const navigate        = useNavigate();
+  const navigate = useNavigate();
   const { user, logout, setUser } = useAuthStore();
 
-  // Profile form
   const [profile, setProfile]   = useState({ first_name: '', last_name: '', job_title: '', company: '' });
   const [avatar, setAvatar]     = useState('🧑');
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Password form
   const [passwords, setPasswords] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [savingPw, setSavingPw]   = useState(false);
   const [showPw, setShowPw]       = useState(false);
 
-  // Delete
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting]           = useState(false);
   const [showDeleteZone, setShowDeleteZone] = useState(false);
 
-  // Load profile on mount
   useEffect(() => {
     authApi.getProfile().then((res) => {
       const d = res.data;
@@ -49,7 +45,6 @@ export default function ProfilePage() {
     }).catch(() => {});
   }, []);
 
-  // ── Save profile ─────────────────────────────────────────────────────────
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSavingProfile(true);
@@ -64,7 +59,6 @@ export default function ProfilePage() {
     }
   };
 
-  // ── Change password ───────────────────────────────────────────────────────
   const handleChangePassword = async (e) => {
     e.preventDefault();
     if (passwords.new_password !== passwords.confirm_password) {
@@ -90,7 +84,6 @@ export default function ProfilePage() {
     }
   };
 
-  // ── Delete account ────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (deleteConfirm !== 'DELETE') {
       toast.error('Please type DELETE to confirm.');
@@ -113,16 +106,16 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50">
 
       {/* Nav */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 sticky top-0 z-10">
+      <nav className="bg-white border-b border-gray-200 px-4 sm:px-6 flex items-center gap-4 sticky top-0 z-10 min-h-[44px]">
         <button onClick={() => navigate('/dashboard')}
-          className="text-sm text-gray-500 hover:text-brand transition flex items-center gap-1">
+          className="text-sm text-gray-500 hover:text-brand transition flex items-center gap-1 min-h-[44px]">
           ← Dashboard
         </button>
         <span className="text-gray-300">|</span>
         <span className="text-sm font-semibold text-gray-900">Profile & Settings</span>
       </nav>
 
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
 
         {/* ── Avatar ───────────────────────────────────────────────────── */}
         <Section title="Your Avatar">
@@ -130,7 +123,7 @@ export default function ProfilePage() {
           <div className="flex flex-wrap gap-2">
             {AVATARS.map((em) => (
               <button key={em} onClick={() => setAvatar(em)}
-                className={`text-2xl w-11 h-11 rounded-xl border-2 flex items-center justify-center transition-all ${
+                className={`text-2xl w-11 h-11 rounded-xl border-2 flex items-center justify-center transition-all min-h-[44px] min-w-[44px] ${
                   avatar === em ? 'border-brand bg-brand/10' : 'border-gray-200 hover:border-gray-300'
                 }`}>
                 {em}
@@ -138,16 +131,16 @@ export default function ProfilePage() {
             ))}
           </div>
           <div className="mt-4 flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-brand/10 border-2 border-brand flex items-center justify-center text-3xl">
+            <div className="w-14 h-14 rounded-full bg-brand/10 border-2 border-brand flex items-center justify-center text-3xl flex-shrink-0">
               {avatar}
             </div>
-            <div>
-              <div className="font-semibold text-gray-900">
+            <div className="min-w-0">
+              <div className="font-semibold text-gray-900 truncate">
                 {profile.first_name || profile.last_name
                   ? `${profile.first_name} ${profile.last_name}`.trim()
                   : user?.email}
               </div>
-              <div className="text-xs text-gray-400">{user?.email}</div>
+              <div className="text-xs text-gray-400 truncate">{user?.email}</div>
             </div>
           </div>
         </Section>
@@ -155,7 +148,7 @@ export default function ProfilePage() {
         {/* ── Personal info ─────────────────────────────────────────────── */}
         <Section title="Personal Information">
           <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">First name</label>
                 <input value={profile.first_name}
@@ -186,7 +179,8 @@ export default function ProfilePage() {
               <input value={user?.email || ''} disabled
                 className="input-field bg-gray-50 text-gray-400 cursor-not-allowed" />
             </div>
-            <button type="submit" disabled={savingProfile} className="btn-primary w-full">
+            <button type="submit" disabled={savingProfile}
+              className="btn-primary w-full min-h-[44px]">
               {savingProfile ? 'Saving…' : 'Save changes'}
             </button>
           </form>
@@ -216,26 +210,27 @@ export default function ProfilePage() {
                 onChange={(e) => setPasswords({ ...passwords, confirm_password: e.target.value })}
                 className="input-field" placeholder="Repeat new password" required />
             </div>
-            <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer min-h-[44px]">
               <input type="checkbox" checked={showPw} onChange={() => setShowPw(!showPw)}
                 className="rounded border-gray-300" />
               Show passwords
             </label>
-            <button type="submit" disabled={savingPw} className="btn-primary w-full">
+            <button type="submit" disabled={savingPw}
+              className="btn-primary w-full min-h-[44px]">
               {savingPw ? 'Changing…' : 'Change password'}
             </button>
           </form>
         </Section>
 
         {/* ── Danger zone ───────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border-2 border-red-200 shadow-sm p-6 mb-4">
+        <div className="bg-white rounded-2xl border-2 border-red-200 shadow-sm p-5 sm:p-6 mb-4">
           <h2 className="text-base font-semibold text-red-600 mb-1">Danger Zone</h2>
           <p className="text-xs text-gray-500 mb-4">
             Permanently delete your account and all your learning progress. This cannot be undone.
           </p>
           {!showDeleteZone ? (
             <button onClick={() => setShowDeleteZone(true)}
-              className="text-sm text-red-500 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 transition">
+              className="text-sm text-red-500 border border-red-300 px-4 py-2.5 rounded-lg hover:bg-red-50 transition min-h-[44px]">
               Delete my account
             </button>
           ) : (
@@ -249,9 +244,10 @@ export default function ProfilePage() {
                 placeholder="Type DELETE here" />
               <div className="flex gap-3">
                 <button onClick={() => { setShowDeleteZone(false); setDeleteConfirm(''); }}
-                  className="btn-secondary text-sm flex-1">Cancel</button>
-                <button onClick={handleDelete} disabled={deleting || deleteConfirm !== 'DELETE'}
-                  className="flex-1 text-sm bg-red-500 hover:bg-red-600 text-white font-medium py-2.5 px-6 rounded-lg transition disabled:opacity-50">
+                  className="btn-secondary text-sm flex-1 min-h-[44px]">Cancel</button>
+                <button onClick={handleDelete}
+                  disabled={deleting || deleteConfirm !== 'DELETE'}
+                  className="flex-1 text-sm bg-red-500 hover:bg-red-600 text-white font-medium py-2.5 px-6 rounded-lg transition disabled:opacity-50 min-h-[44px]">
                   {deleting ? 'Deleting…' : 'Permanently delete'}
                 </button>
               </div>

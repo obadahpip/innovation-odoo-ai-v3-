@@ -52,9 +52,7 @@ function ProgressRing({ pct, size = 64, stroke = 6 }) {
 
 // ── Skeleton loader ───────────────────────────────────────────────────────────
 function Skeleton({ className }) {
-  return (
-    <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
-  );
+  return <div className={`animate-pulse bg-gray-200 rounded ${className}`} />;
 }
 
 function DashboardSkeleton() {
@@ -92,7 +90,7 @@ function MilestoneCard({ pct, onDismiss }) {
   const emoji = milestones[pct];
   if (!emoji) return null;
   return (
-    <div className="bg-gradient-to-r from-brand to-brand-dark text-white rounded-2xl p-5 mb-4 flex items-center gap-4 shadow-lg animate-bounce-in">
+    <div className="bg-gradient-to-r from-brand to-brand-dark text-white rounded-2xl p-5 mb-4 flex items-center gap-4 shadow-lg">
       <span className="text-4xl">{emoji}</span>
       <div className="flex-1">
         <div className="font-bold text-lg">{pct}% Complete!</div>
@@ -104,18 +102,17 @@ function MilestoneCard({ pct, onDismiss }) {
 }
 
 const FILTER_OPTIONS = ["All", "Not Started", "In Progress", "Completed", "Intro Only"];
-
-const SECTION_ICONS = ["⚙️","💰","🤝","🌐","🏭","👥","📣","🛠️","📊"];
+const SECTION_ICONS  = ["⚙️","💰","🤝","🌐","🏭","👥","📣","🛠️","📊"];
 
 export default function DashboardPage() {
-  const [data, setData]             = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [expanded, setExpanded]     = useState({});
-  const [search, setSearch]         = useState("");
-  const [filter, setFilter]         = useState("All");
+  const [data, setData]               = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [expanded, setExpanded]       = useState({});
+  const [search, setSearch]           = useState("");
+  const [filter, setFilter]           = useState("All");
   const [activeSectionId, setActiveSectionId] = useState(null);
-  const [confetti, setConfetti]     = useState(false);
-  const [milestone, setMilestone]   = useState(null);
+  const [confetti, setConfetti]       = useState(false);
+  const [milestone, setMilestone]     = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchRef = useRef(null);
   const prevPct   = useRef(0);
@@ -143,7 +140,6 @@ export default function DashboardPage() {
           setExpanded({ [res.data.sections[0].id]: true });
           setActiveSectionId(res.data.sections[0].id);
         }
-        // Check milestone
         const pct = res.data.overall_progress || 0;
         const milestones = [25, 50, 75, 100];
         for (const m of milestones) {
@@ -205,7 +201,6 @@ export default function DashboardPage() {
       {/* ── Top nav ──────────────────────────────────────────────────────── */}
       <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-20 flex-shrink-0">
         <div className="flex items-center gap-3">
-          {/* Hamburger for mobile */}
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
             className="md:hidden text-gray-400 hover:text-gray-600 p-1">☰</button>
           <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center text-white text-xs font-bold">O</div>
@@ -253,7 +248,6 @@ export default function DashboardPage() {
           <nav className="flex-1 p-3 space-y-0.5">
             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Sections</div>
             {data.sections.map((sec, i) => {
-              const secPct = sec.total_count ? Math.round((sec.completed_count / sec.total_count) * 100) : 0;
               const isActive = activeSectionId === sec.id;
               return (
                 <button key={sec.id}
@@ -265,7 +259,7 @@ export default function DashboardPage() {
                       document.getElementById(`section-${sec.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }, 50);
                   }}
-                  className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition-all group ${
+                  className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition-all ${
                     isActive ? "bg-brand/10 text-brand" : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
@@ -288,6 +282,10 @@ export default function DashboardPage() {
               className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition">
               <span>📋</span> My Plan
             </button>
+            <button onClick={() => navigate("/profile")}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition">
+              <span>👤</span> Profile
+            </button>
             {pct === 100 && (
               <button onClick={() => navigate("/certificate")}
                 className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-brand hover:bg-brand/5 transition font-medium">
@@ -306,7 +304,6 @@ export default function DashboardPage() {
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-4 py-6">
 
-            {/* Milestone card */}
             {milestone && (
               <MilestoneCard pct={milestone} onDismiss={() => setMilestone(null)} />
             )}
@@ -383,8 +380,8 @@ export default function DashboardPage() {
                 const visibleFiles = section.files.filter(filterLesson);
                 if (hasActiveFilter && visibleFiles.length === 0) return null;
 
-                const isOpen    = !!expanded[section.id];
-                const secPct    = section.total_count
+                const isOpen      = !!expanded[section.id];
+                const secPct      = section.total_count
                   ? Math.round((section.completed_count / section.total_count) * 100) : 0;
                 const filesToShow = hasActiveFilter ? visibleFiles : (isOpen ? section.files : []);
 
