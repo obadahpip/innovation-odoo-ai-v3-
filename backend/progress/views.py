@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .models import UserProgress, Certificate
 from content.models import LearningFile, LearningSection
+from accounts.emails import send_section_complete_email, send_certificate_email
 
 
 class ProgressUpdateView(APIView):
@@ -15,8 +16,8 @@ class ProgressUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        file_id      = request.data.get('file_id')
-        slide_index  = request.data.get('slide_index', request.data.get('step_index', 0))
+        file_id       = request.data.get('file_id')
+        slide_index   = request.data.get('slide_index', request.data.get('step_index', 0))
         mark_complete = request.data.get('completed', False)
 
         try:
@@ -36,15 +37,57 @@ class ProgressUpdateView(APIView):
 
         progress.last_step_index = slide_index
 
-        if mark_complete:
+        if mark_complete and progress.status != 'completed':
             progress.status       = 'completed'
             progress.completed_at = timezone.now()
+            progress.save()
 
-        progress.save()
+            # ── Phase 7: check section completion ────────────────────────
+            self._check_section_complete(request.user, file.section)
+        else:
+            progress.save()
+
         return Response({
             'status':           progress.status,
             'last_slide_index': progress.last_step_index,
         })
+
+    def _check_section_complete(self, user, section):
+        """Fire section-complete email if all lessons in the section are done."""
+        section_files    = LearningFile.objects.filter(section=section)
+        section_file_ids = set(section_files.values_list('id', flat=True))
+        completed_ids    = set(
+            UserProgress.objects.filter(
+                user=user, file__in=section_files, status='completed'
+            ).values_list('file_id', flat=True)
+        )
+
+        if section_file_ids != completed_ids:
+            return   # section not yet fully complete
+
+        # Avoid sending duplicate emails — check session cache key via DB flag
+        # We use a simple approach: only send if this is the first time
+        cache_attr = f'_section_{section.id}_email_sent'
+        from django.core.cache import cache
+        cache_key = f'section_complete_email_{user.id}_{section.id}'
+        if cache.get(cache_key):
+            return
+        cache.set(cache_key, True, timeout=60 * 60 * 24 * 30)  # 30 days
+
+        total_files     = LearningFile.objects.count()
+        total_completed = UserProgress.objects.filter(user=user, status='completed').count()
+
+        try:
+            send_section_complete_email(
+                to_email        = user.email,
+                first_name      = user.first_name,
+                section_number  = section.number,
+                section_name    = section.name,
+                total_completed = total_completed,
+                total_files     = total_files,
+            )
+        except Exception:
+            pass  # never crash the API due to email failure
 
 
 class DashboardView(APIView):
@@ -85,10 +128,10 @@ class DashboardView(APIView):
                     section_completed += 1
 
                 files_data.append({
-                    'id':              f.id,
-                    'title':           f.title,
-                    'lesson_type':     f.lesson_type,
-                    'status':          status,
+                    'id':               f.id,
+                    'title':            f.title,
+                    'lesson_type':      f.lesson_type,
+                    'status':           status,
                     'last_slide_index': last_slide,
                 })
 
@@ -109,7 +152,6 @@ class DashboardView(APIView):
 
         overall_pct = round((total_completed / total_files * 100) if total_files else 0)
 
-        # First in_progress or not_started lesson
         continue_file = None
         for sec in sections_data:
             for f in sec['files']:
@@ -120,26 +162,25 @@ class DashboardView(APIView):
                 break
 
         return Response({
-            'overall_progress': overall_pct,
-            'total_files':      total_files,
-            'total_completed':  total_completed,
+            'overall_progress':  overall_pct,
+            'total_files':       total_files,
+            'total_completed':   total_completed,
             'continue_learning': continue_file,
-            'sections':         sections_data,
+            'sections':          sections_data,
         })
 
 
-# ── Phase 3: Certificate ──────────────────────────────────────────────────────
+# ── Certificate ───────────────────────────────────────────────────────────────
 
 class CertificateView(APIView):
     """
     POST /api/progress/certificate/generate/
-    Generates (or fetches existing) certificate for a user who has completed all lessons.
-    Returns: { certificate_id, issued_at }
+    Generates (or fetches existing) certificate for a user who completed all lessons.
+    Phase 7: sends certificate email on first generation.
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Verify 100% completion server-side
         all_files       = LearningFile.objects.count()
         completed_count = UserProgress.objects.filter(
             user=request.user, status='completed'
@@ -151,7 +192,22 @@ class CertificateView(APIView):
                 status=403,
             )
 
-        cert, _ = Certificate.objects.get_or_create(user=request.user)
+        created = False
+        cert, created = Certificate.objects.get_or_create(user=request.user)
+
+        # ── Phase 7: send certificate email on first generation ───────────
+        if created:
+            try:
+                issued_date = cert.issued_at.strftime('%B %d, %Y')
+                send_certificate_email(
+                    to_email       = request.user.email,
+                    first_name     = request.user.first_name,
+                    certificate_id = cert.certificate_id,
+                    issued_date    = issued_date,
+                )
+            except Exception:
+                pass  # never crash the API due to email failure
+
         return Response({
             'certificate_id': str(cert.certificate_id),
             'issued_at':      cert.issued_at.isoformat(),

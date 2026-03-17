@@ -1,74 +1,91 @@
-# Phase 6 — Mobile Responsiveness
+# Phase 7 — Email Notifications
 
-Pure frontend — no backend changes, no new packages, no migration needed.
+Backend only — no frontend changes, no new packages, no migration needed.
 
 ---
 
 ## Files included
 
-| File in this zip                                       | Action  | Replace in project                                      |
-|--------------------------------------------------------|---------|---------------------------------------------------------|
-| `frontend/src/pages/course/CoursePage.jsx`             | Replace | `frontend/src/pages/course/CoursePage.jsx`              |
-| `frontend/src/pages/profile/ProfilePage.jsx`           | Replace | `frontend/src/pages/profile/ProfilePage.jsx`            |
+| File in this zip                                                        | Action       | Replace / add in project                                                  |
+|-------------------------------------------------------------------------|--------------|---------------------------------------------------------------------------|
+| `backend/accounts/emails.py`                                            | Replace      | `backend/accounts/emails.py`                                              |
+| `backend/progress/views.py`                                             | Replace      | `backend/progress/views.py`                                               |
+| `backend/progress/management/__init__.py`                               | **New file** | `backend/progress/management/__init__.py`                                 |
+| `backend/progress/management/commands/__init__.py`                      | **New file** | `backend/progress/management/commands/__init__.py`                        |
+| `backend/progress/management/commands/send_weekly_digest.py`            | **New file** | `backend/progress/management/commands/send_weekly_digest.py`              |
 
 ---
 
 ## What changed
 
-### CoursePage — biggest fixes
+### accounts/emails.py — full rewrite
+All emails now share a consistent branded HTML template (purple gradient header, white card, footer).
+Functions added / updated:
 
-**h-screen collapse on mobile (fixed)**
-- Changed `h-screen` → `height: 100dvh` (dynamic viewport height)
-- `100dvh` accounts for the mobile browser address bar shrinking/growing
-- Prevents the page from being cut off or overflowing on iOS/Android
+| Function                    | Trigger                              | Status  |
+|-----------------------------|--------------------------------------|---------|
+| `send_otp_email`            | Registration / password reset        | Updated (styled) |
+| `send_welcome_email`        | After OTP verification               | Updated (styled) |
+| `send_section_complete_email` | When user finishes all lessons in a section | **New** |
+| `send_weekly_digest_email`  | Called by management command         | **New** |
+| `send_certificate_email`    | When certificate is generated        | **New** |
+| `send_payment_*`            | Legacy payment flows                 | Updated (styled, kept) |
 
-**AI Tutor — bottom sheet on mobile**
-- On mobile (< lg breakpoint): AI panel is completely hidden from the side
-- A **💡 AI** button appears in the breadcrumb bar on mobile
-- Tapping it opens a bottom sheet that slides up to 75% of the screen height
-- The sheet has a drag handle, close button, full Simplify/Ask functionality
-- Body scroll is locked while the sheet is open
-- On desktop (lg+): original side panel is unchanged
+### progress/views.py — two additions
 
-**Touch targets — all interactive elements**
-- Every button now has `min-h-[44px]` (Apple/Google recommended minimum)
-- Breadcrumb bar height enforced at 44px minimum
-- Nav/exit buttons have proper tap areas
+**Section completion email** (`ProgressUpdateView._check_section_complete`):
+- Called every time a lesson is marked complete
+- Checks if all lessons in that section are now done
+- Uses Django cache to prevent duplicate emails (30-day TTL per user+section)
+- Never crashes the API if email fails (`try/except` wrapped)
 
-**Other mobile polish**
-- Slide content padding: `px-4 sm:px-8` (tighter on small screens)
-- Slide title: `text-lg sm:text-xl`
-- "Complete lesson ✓" shortened to "Complete ✓" on mobile to fit the button
-- Slide count (1/8) hidden on mobile to save space
-- Shortcut hint hidden on mobile (keyboard not available)
-- ToC sidebar: already desktop-only (`hidden md:flex`) — unchanged
+**Certificate email** (`CertificateView`):
+- Sends on first certificate generation only (`created=True`)
+- Includes certificate ID and issue date
+- Links user to `/certificate` page to download PDF
 
-### ProfilePage — minor responsive fixes
-- Nav height enforced at 44px minimum
-- Grid: `grid-cols-1 sm:grid-cols-2` (stacked on mobile, side by side on tablet+)
-- All buttons: `min-h-[44px]`
-- Avatar section: `flex-shrink-0` on avatar circle to prevent squishing on small screens
-- Padding: `p-5 sm:p-6` on cards
+### Weekly digest management command
 
-### DashboardPage — already done in Phase 3
-- Sidebar hamburger menu already works on mobile ✅
-- No changes needed
+Run manually or schedule it:
+
+```bash
+# Test without sending
+python manage.py send_weekly_digest --dry-run
+
+# Send to all verified users
+python manage.py send_weekly_digest
+
+# Send to a single user (for testing)
+python manage.py send_weekly_digest --email you@example.com
+```
+
+**Schedule on Windows (Task Scheduler):**
+- Program: `python`
+- Arguments: `manage.py send_weekly_digest`
+- Start in: `C:\path\to\backend`
+- Trigger: Weekly, every Monday at 9:00 AM
+
+**Schedule on Linux/Mac (cron):**
+```
+0 9 * * 1 cd /path/to/backend && python manage.py send_weekly_digest >> /var/log/digest.log 2>&1
+```
 
 ---
 
-## No commands needed
+## No migration needed
 
-Just copy the 2 files and reload.
+No new models — just new email functions and a management command.
 
 ---
 
 ## Quick checklist
 
-- [ ] `CoursePage.jsx` replaced
-- [ ] `ProfilePage.jsx` replaced
-- [ ] On mobile (375px): lesson page fills full height without overflow
-- [ ] On mobile: "💡 AI" button appears in the top bar
-- [ ] Tapping "💡 AI" opens bottom sheet with Simplify/Ask
-- [ ] Bottom sheet closes by tapping the backdrop or × button
-- [ ] All buttons are comfortably tappable (≥44px height)
-- [ ] Profile page stacks to single column on mobile
+- [ ] `accounts/emails.py` replaced
+- [ ] `progress/views.py` replaced
+- [ ] `progress/management/` folder created with both `__init__.py` files
+- [ ] `send_weekly_digest.py` added
+- [ ] Test: `python manage.py send_weekly_digest --dry-run` prints users without error
+- [ ] Test: `python manage.py send_weekly_digest --email your@email.com` sends one email
+- [ ] Complete a lesson in a full section → section complete email arrives
+- [ ] Generate certificate at 100% → certificate email arrives
+- [ ] `.env` has valid `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
