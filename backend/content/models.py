@@ -1,10 +1,11 @@
 from django.db import models
+from django.conf import settings
 
 
 class LearningSection(models.Model):
-    number = models.IntegerField(unique=True)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
+    number          = models.IntegerField(unique=True)
+    name            = models.CharField(max_length=255)
+    description     = models.TextField(blank=True)
     estimated_hours = models.IntegerField(default=0)
 
     class Meta:
@@ -16,21 +17,17 @@ class LearningSection(models.Model):
 
 class LearningFile(models.Model):
     LESSON_TYPES = [
-        ('intro', 'Introduction'),
+        ('intro',  'Introduction'),
         ('lesson', 'Lesson'),
     ]
 
-    title = models.CharField(max_length=255)
-    section = models.ForeignKey(
-        LearningSection, on_delete=models.CASCADE, related_name='files'
-    )
-    rst_content = models.TextField(blank=True)
+    title        = models.CharField(max_length=255)
+    section      = models.ForeignKey(LearningSection, on_delete=models.CASCADE, related_name='files')
+    rst_content  = models.TextField(blank=True)
     html_content = models.TextField(blank=True)
-    file_order = models.IntegerField(default=0)
-    lesson_type = models.CharField(
-        max_length=10, choices=LESSON_TYPES, default='lesson'
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
+    file_order   = models.IntegerField(default=0)
+    lesson_type  = models.CharField(max_length=10, choices=LESSON_TYPES, default='lesson')
+    created_at   = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['section__number', 'file_order']
@@ -40,17 +37,11 @@ class LearningFile(models.Model):
 
 
 class LessonSlide(models.Model):
-    """
-    V2 slide-based lesson content.
-    Each lesson is broken into slides: first = intro, last = conclusion.
-    """
-    file = models.ForeignKey(
-        LearningFile, on_delete=models.CASCADE, related_name='slides'
-    )
-    slide_number = models.IntegerField(default=1)
-    title = models.CharField(max_length=255)
-    content = models.TextField()          # Rich markdown/text content
-    is_intro = models.BooleanField(default=False)
+    file          = models.ForeignKey(LearningFile, on_delete=models.CASCADE, related_name='slides')
+    slide_number  = models.IntegerField(default=1)
+    title         = models.CharField(max_length=255)
+    content       = models.TextField()
+    is_intro      = models.BooleanField(default=False)
     is_conclusion = models.BooleanField(default=False)
 
     class Meta:
@@ -63,9 +54,7 @@ class LessonSlide(models.Model):
 
 
 class LessonStep(models.Model):
-    """
-    V1 step model — kept for data migration safety. Not used in V2 UI.
-    """
+    """V1 step model — kept for data safety. Not used in V2 UI."""
     ACTION_TYPES = [
         ('click',    'Click'),
         ('observe',  'Observe'),
@@ -73,15 +62,11 @@ class LessonStep(models.Model):
         ('navigate', 'Navigate'),
     ]
 
-    file = models.ForeignKey(
-        LearningFile, on_delete=models.CASCADE, related_name='steps'
-    )
-    step_order = models.IntegerField(default=0)
-    instruction_text = models.TextField()
+    file               = models.ForeignKey(LearningFile, on_delete=models.CASCADE, related_name='steps')
+    step_order         = models.IntegerField(default=0)
+    instruction_text   = models.TextField()
     odoo_screen_target = models.CharField(max_length=255, blank=True)
-    action_type = models.CharField(
-        max_length=20, choices=ACTION_TYPES, default='observe'
-    )
+    action_type        = models.CharField(max_length=20, choices=ACTION_TYPES, default='observe')
     highlight_selector = models.CharField(max_length=255, blank=True)
 
     class Meta:
@@ -92,16 +77,33 @@ class LessonStep(models.Model):
 
 
 class QuizQuestion(models.Model):
-    file = models.ForeignKey(
-        LearningFile, on_delete=models.CASCADE, related_name='quiz_questions'
-    )
-    question_text = models.TextField()
-    options = models.JSONField()
+    file           = models.ForeignKey(LearningFile, on_delete=models.CASCADE, related_name='quiz_questions')
+    question_text  = models.TextField()
+    options        = models.JSONField()
     correct_answer = models.CharField(max_length=255)
-    explanation = models.TextField(blank=True)
+    explanation    = models.TextField(blank=True)
 
     class Meta:
         ordering = ['file']
 
     def __str__(self):
         return f"[{self.file.title}] {self.question_text[:60]}"
+
+
+# ── Phase 5: AI Conversation Persistence ─────────────────────────────────────
+
+class AIConversation(models.Model):
+    """Stores the global AI chat history per user (last 20 messages)."""
+    user       = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ai_conversation',
+    )
+    messages   = models.JSONField(default=list)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ai_conversations'
+
+    def __str__(self):
+        return f"AIConversation({self.user.email}, {len(self.messages)} messages)"

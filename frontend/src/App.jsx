@@ -20,6 +20,7 @@ import DashboardPage   from './pages/dashboard/DashboardPage';
 import CoursePage      from './pages/course/CoursePage';
 import PlanPage        from './pages/plan/PlanPage';
 import CertificatePage from './pages/certificate/CertificatePage';
+import ProfilePage     from './pages/profile/ProfilePage';
 import NotFound        from './pages/NotFound';
 import ServerError     from './pages/ServerError';
 
@@ -43,7 +44,7 @@ export default function App() {
           <ProtectedRoute><ErrorBoundary><WelcomePage /></ErrorBoundary></ProtectedRoute>
         } />
 
-        {/* Protected app — all wrapped in ErrorBoundary */}
+        {/* Protected app */}
         <Route path="/dashboard" element={
           <ProtectedRoute><ErrorBoundary><DashboardPage /></ErrorBoundary></ProtectedRoute>
         } />
@@ -55,6 +56,9 @@ export default function App() {
         } />
         <Route path="/certificate" element={
           <ProtectedRoute><ErrorBoundary><CertificatePage /></ErrorBoundary></ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute><ErrorBoundary><ProfilePage /></ErrorBoundary></ProtectedRoute>
         } />
 
         {/* Errors */}

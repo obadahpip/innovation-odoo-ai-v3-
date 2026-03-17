@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from openai import OpenAI
 
-from .models import LearningFile, LessonSlide
+from .models import LearningFile, LessonSlide, AIConversation
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -12,7 +12,6 @@ client = OpenAI(api_key=settings.OPENAI_API_KEY)
 # ── Slide list ────────────────────────────────────────────────────────────────
 
 class LessonSlidesView(APIView):
-    """GET /api/content/files/<file_id>/slides/"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, file_id):
@@ -22,31 +21,19 @@ class LessonSlidesView(APIView):
             return Response({'detail': 'Lesson not found.'}, status=404)
 
         slides = file.slides.all()
-        data = [
-            {
-                'id': s.id,
-                'slide_number': s.slide_number,
-                'title': s.title,
-                'content': s.content,
-                'is_intro': s.is_intro,
-                'is_conclusion': s.is_conclusion,
-            }
-            for s in slides
-        ]
+        data = [{
+            'id': s.id, 'slide_number': s.slide_number, 'title': s.title,
+            'content': s.content, 'is_intro': s.is_intro, 'is_conclusion': s.is_conclusion,
+        } for s in slides]
+
         return Response({
-            'file_id': file.id,
-            'title': file.title,
-            'lesson_type': file.lesson_type,
-            'section': file.section.name,
-            'total_slides': len(data),
-            'slides': data,
+            'file_id': file.id, 'title': file.title,
+            'lesson_type': file.lesson_type, 'section': file.section.name,
+            'total_slides': len(data), 'slides': data,
         })
 
 
-# ── File detail (kept for compatibility) ─────────────────────────────────────
-
 class LessonFileDetailView(APIView):
-    """GET /api/content/files/<file_id>/"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, file_id):
@@ -54,30 +41,18 @@ class LessonFileDetailView(APIView):
             file = LearningFile.objects.get(id=file_id)
         except LearningFile.DoesNotExist:
             return Response({'detail': 'Lesson not found.'}, status=404)
-
-        return Response({
-            'id': file.id,
-            'title': file.title,
-            'section': file.section.name,
-            'lesson_type': file.lesson_type,
-        })
+        return Response({'id': file.id, 'title': file.title, 'section': file.section.name, 'lesson_type': file.lesson_type})
 
 
 # ── Per-slide AI: Simplify ────────────────────────────────────────────────────
 
 class SlideSimplifyView(APIView):
-    """
-    POST /api/content/slides/simplify/
-    Body: { slide_id: int }
-    Returns: { simplified: str }
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         slide_id = request.data.get('slide_id')
         if not slide_id:
             return Response({'detail': 'slide_id is required.'}, status=400)
-
         try:
             slide = LessonSlide.objects.select_related('file').get(id=slide_id)
         except LessonSlide.DoesNotExist:
@@ -95,26 +70,18 @@ Provide only the simplified explanation — no preamble or meta-commentary."""
 
         try:
             response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=[{'role': 'user', 'content': prompt}],
-                max_tokens=300,
-                temperature=0.5,
+                model='gpt-4o', messages=[{'role': 'user', 'content': prompt}],
+                max_tokens=300, temperature=0.5,
             )
             simplified = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
-
         return Response({'simplified': simplified})
 
 
-# ── Per-slide AI: Ask a question ──────────────────────────────────────────────
+# ── Per-slide AI: Ask ─────────────────────────────────────────────────────────
 
 class SlideAskView(APIView):
-    """
-    POST /api/content/slides/ask/
-    Body: { slide_id: int, question: str, history: [...] }
-    Returns: { answer: str }
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -124,7 +91,6 @@ class SlideAskView(APIView):
 
         if not slide_id or not question:
             return Response({'detail': 'slide_id and question are required.'}, status=400)
-
         try:
             slide = LessonSlide.objects.select_related('file__section').get(id=slide_id)
         except LessonSlide.DoesNotExist:
@@ -132,12 +98,9 @@ class SlideAskView(APIView):
 
         system_prompt = f"""You are an expert Odoo tutor helping a student understand a lesson slide.
 Answer the student's question clearly and concisely. Stay focused on the slide context.
-If the question is unrelated to the slide, gently redirect them.
-
-Lesson: {slide.file.title}
-Section: {slide.file.section.name}
+Lesson: {slide.file.title} | Section: {slide.file.section.name}
 Slide {slide.slide_number}: {slide.title}
-Slide content: {slide.content[:800]}"""
+Content: {slide.content[:800]}"""
 
         messages = [{'role': 'system', 'content': system_prompt}]
         for msg in history[-4:]:
@@ -146,33 +109,21 @@ Slide content: {slide.content[:800]}"""
         messages.append({'role': 'user', 'content': question})
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=messages,
-                max_tokens=400,
-                temperature=0.7,
-            )
+            response = client.chat.completions.create(model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7)
             answer = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
-
         return Response({'answer': answer})
 
 
-# ── Global AI tutor (floating widget) ────────────────────────────────────────
+# ── Global AI chat ────────────────────────────────────────────────────────────
 
 class GlobalAIView(APIView):
-    """
-    POST /api/content/ai/chat/
-    Body: { message: str, history: [...] }
-    Returns: { reply: str }
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         message = request.data.get('message', '').strip()
         history = request.data.get('history', [])
-
         if not message:
             return Response({'detail': 'message is required.'}, status=400)
 
@@ -184,15 +135,9 @@ class GlobalAIView(APIView):
         ])
 
         system_prompt = f"""You are a helpful AI assistant for an Odoo learning platform called Innovation Odoo AI.
-Your role is to help users navigate the course, understand what topics are covered, recommend lessons, \
-and answer general questions about Odoo.
-
-The platform has 81 lessons organized into 9 sections:
-{section_summary}
-
-Be concise, friendly, and helpful. If a user asks about a specific Odoo feature, tell them which section \
-and lesson covers it. If they ask which lesson to start with, ask about their role and recommend accordingly.
-Do not answer questions unrelated to Odoo or this course."""
+Help users navigate the course, understand topics, recommend lessons, and answer Odoo questions.
+Platform: 81 lessons in 9 sections:\n{section_summary}
+Be concise and friendly. Do not answer questions unrelated to Odoo or this course."""
 
         messages = [{'role': 'system', 'content': system_prompt}]
         for msg in history[-6:]:
@@ -201,33 +146,22 @@ Do not answer questions unrelated to Odoo or this course."""
         messages.append({'role': 'user', 'content': message})
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=messages,
-                max_tokens=400,
-                temperature=0.7,
-            )
+            response = client.chat.completions.create(model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7)
             reply = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
-
         return Response({'reply': reply})
 
 
-# ── Legacy tutor (kept for any V1 data in flight) ────────────────────────────
+# ── Legacy tutor ──────────────────────────────────────────────────────────────
 
 class TutorChatView(APIView):
-    """
-    POST /api/content/tutor/
-    Legacy V1 endpoint — still works, now slide-context aware if slide_id provided.
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         file_id = request.data.get('file_id')
         message = request.data.get('message', '').strip()
         history = request.data.get('history', [])
-
         if not message:
             return Response({'detail': 'message is required.'}, status=400)
 
@@ -239,10 +173,7 @@ class TutorChatView(APIView):
             except LearningFile.DoesNotExist:
                 pass
 
-        system_prompt = f"""You are an expert Odoo tutor. Help the student understand the current lesson.
-{context}
-Be concise, clear, and encouraging. Max 200 words per reply."""
-
+        system_prompt = f"You are an expert Odoo tutor. {context}\nBe concise, clear, and encouraging. Max 200 words."
         messages = [{'role': 'system', 'content': system_prompt}]
         for msg in history[-6:]:
             if msg.get('role') in ('user', 'assistant'):
@@ -250,14 +181,47 @@ Be concise, clear, and encouraging. Max 200 words per reply."""
         messages.append({'role': 'user', 'content': message})
 
         try:
-            response = client.chat.completions.create(
-                model='gpt-4o',
-                messages=messages,
-                max_tokens=400,
-                temperature=0.7,
-            )
+            response = client.chat.completions.create(model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7)
             reply = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
-
         return Response({'reply': reply})
+
+
+# ── Phase 5: AI Conversation Persistence ─────────────────────────────────────
+
+class AIHistoryView(APIView):
+    """GET /api/content/ai/history/ — returns last 10 messages"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            convo = AIConversation.objects.get(user=request.user)
+            messages = convo.messages[-10:]
+        except AIConversation.DoesNotExist:
+            messages = []
+        return Response({'messages': messages})
+
+
+class AIHistorySaveView(APIView):
+    """POST /api/content/ai/history/save/ — saves up to 20 messages"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        messages = request.data.get('messages', [])
+        if not isinstance(messages, list):
+            return Response({'detail': 'messages must be a list.'}, status=400)
+
+        convo, _ = AIConversation.objects.get_or_create(user=request.user)
+        convo.messages = messages[-20:]
+        convo.save()
+        return Response({'saved': len(convo.messages)})
+
+
+class AIHistoryClearView(APIView):
+    """POST /api/content/ai/history/clear/ — clears all messages"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        AIConversation.objects.filter(user=request.user).update(messages=[])
+        return Response({'detail': 'Conversation cleared.'})

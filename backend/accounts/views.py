@@ -18,10 +18,7 @@ from .emails import send_otp_email, send_welcome_email
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
-    return {
-        'access':  str(refresh.access_token),
-        'refresh': str(refresh),
-    }
+    return {'access': str(refresh.access_token), 'refresh': str(refresh)}
 
 
 @api_view(['POST'])
@@ -36,10 +33,7 @@ def register(request):
         send_otp_email(user.email, otp.code, OTPToken.PURPOSE_REGISTRATION)
     except Exception:
         pass
-    return Response({
-        'message': 'Registration successful. Please check your email for the verification code.',
-        'email': user.email,
-    }, status=status.HTTP_201_CREATED)
+    return Response({'message': 'Registration successful. Please check your email for the verification code.', 'email': user.email}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -54,12 +48,10 @@ def verify_otp(request):
         user = User.objects.get(email=email)
     except User.DoesNotExist:
         return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
-    otp = OTPToken.objects.filter(
-        user=user, code=code, purpose=OTPToken.PURPOSE_REGISTRATION, is_used=False,
-    ).order_by('-created_at').first()
+    otp = OTPToken.objects.filter(user=user, code=code, purpose=OTPToken.PURPOSE_REGISTRATION, is_used=False).order_by('-created_at').first()
     if not otp or not otp.is_valid():
         return Response({'error': 'Invalid or expired verification code.'}, status=status.HTTP_400_BAD_REQUEST)
-    otp.is_used    = True
+    otp.is_used = True
     otp.save()
     user.is_verified = True
     user.save()
@@ -68,11 +60,7 @@ def verify_otp(request):
     except Exception:
         pass
     tokens = get_tokens_for_user(user)
-    return Response({
-        'message': 'Email verified successfully.',
-        'tokens':  tokens,
-        'user':    UserProfileSerializer(user).data,
-    })
+    return Response({'message': 'Email verified successfully.', 'tokens': tokens, 'user': UserProfileSerializer(user).data})
 
 
 @api_view(['POST'])
@@ -81,14 +69,11 @@ def resend_otp(request):
     serializer = ResendOTPSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    email      = serializer.validated_data['email']
-    cache_key  = f'otp_resend_{email}'
+    email     = serializer.validated_data['email']
+    cache_key = f'otp_resend_{email}'
     resend_count = cache.get(cache_key, 0)
     if resend_count >= 3:
-        return Response(
-            {'error': 'Too many resend attempts. Please wait before trying again.'},
-            status=status.HTTP_429_TOO_MANY_REQUESTS,
-        )
+        return Response({'error': 'Too many resend attempts. Please wait before trying again.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     try:
         user = User.objects.get(email=email, is_verified=False)
         otp  = OTPToken.create_for_user(user, OTPToken.PURPOSE_REGISTRATION)
@@ -113,11 +98,7 @@ def login_view(request):
     if not user:
         return Response({'error': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
     if not user.is_verified:
-        return Response(
-            {'error': 'Please verify your email before logging in.',
-             'needs_verification': True, 'email': email},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        return Response({'error': 'Please verify your email before logging in.', 'needs_verification': True, 'email': email}, status=status.HTTP_403_FORBIDDEN)
     tokens = get_tokens_for_user(user)
     return Response({'tokens': tokens, 'user': UserProfileSerializer(user).data})
 
@@ -151,9 +132,7 @@ def reset_password(request):
         user = User.objects.get(email=email)
     except User.DoesNotExist:
         return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
-    otp = OTPToken.objects.filter(
-        user=user, code=code, purpose=OTPToken.PURPOSE_PASSWORD_RESET, is_used=False,
-    ).order_by('-created_at').first()
+    otp = OTPToken.objects.filter(user=user, code=code, purpose=OTPToken.PURPOSE_PASSWORD_RESET, is_used=False).order_by('-created_at').first()
     if not otp or not otp.is_valid():
         return Response({'error': 'Invalid or expired reset code.'}, status=status.HTTP_400_BAD_REQUEST)
     otp.is_used = True
@@ -175,23 +154,52 @@ def profile(request):
     return Response(serializer.data)
 
 
-# ── Phase 2: Onboarding endpoint ─────────────────────────────────────────────
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def onboarding(request):
-    """
-    POST /api/auth/onboarding/
-    Body: { role, experience, learning_goal }
-
-    Saves the user's onboarding answers and marks onboarding_done = True.
-    Safe to call again (idempotent) — just updates the values.
-    """
     serializer = OnboardingSerializer(request.user, data=request.data, partial=True)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     user = serializer.save()
-    return Response({
-        'message': 'Onboarding complete.',
-        'user':    UserProfileSerializer(user).data,
-    })
+    return Response({'message': 'Onboarding complete.', 'user': UserProfileSerializer(user).data})
+
+
+# ── Phase 5: Change password ──────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """
+    POST /api/auth/change-password/
+    Body: { current_password, new_password }
+    """
+    current  = request.data.get('current_password', '')
+    new_pass = request.data.get('new_password', '')
+
+    if not current or not new_pass:
+        return Response({'error': 'Both current_password and new_password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(new_pass) < 8:
+        return Response({'error': 'New password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = authenticate(request, username=request.user.email, password=current)
+    if not user:
+        return Response({'error': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_pass)
+    user.save()
+    return Response({'message': 'Password changed successfully.'})
+
+
+# ── Phase 5: Delete account ───────────────────────────────────────────────────
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_account(request):
+    """
+    DELETE /api/auth/delete-account/
+    Permanently deletes the authenticated user's account.
+    """
+    user = request.user
+    user.delete()
+    return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
