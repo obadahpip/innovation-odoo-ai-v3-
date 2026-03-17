@@ -11,7 +11,7 @@ from .models import User, OTPToken
 from .serializers import (
     RegisterSerializer, OTPVerifySerializer, ResendOTPSerializer,
     LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer,
-    UserProfileSerializer,
+    UserProfileSerializer, OnboardingSerializer,
 )
 from .emails import send_otp_email, send_welcome_email
 
@@ -19,7 +19,7 @@ from .emails import send_otp_email, send_welcome_email
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
     return {
-        'access': str(refresh.access_token),
+        'access':  str(refresh.access_token),
         'refresh': str(refresh),
     }
 
@@ -31,7 +31,7 @@ def register(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     user = serializer.save()
-    otp = OTPToken.create_for_user(user, OTPToken.PURPOSE_REGISTRATION)
+    otp  = OTPToken.create_for_user(user, OTPToken.PURPOSE_REGISTRATION)
     try:
         send_otp_email(user.email, otp.code, OTPToken.PURPOSE_REGISTRATION)
     except Exception:
@@ -49,7 +49,7 @@ def verify_otp(request):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     email = serializer.validated_data['email']
-    code = serializer.validated_data['code']
+    code  = serializer.validated_data['code']
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
@@ -59,7 +59,7 @@ def verify_otp(request):
     ).order_by('-created_at').first()
     if not otp or not otp.is_valid():
         return Response({'error': 'Invalid or expired verification code.'}, status=status.HTTP_400_BAD_REQUEST)
-    otp.is_used = True
+    otp.is_used    = True
     otp.save()
     user.is_verified = True
     user.save()
@@ -70,8 +70,8 @@ def verify_otp(request):
     tokens = get_tokens_for_user(user)
     return Response({
         'message': 'Email verified successfully.',
-        'tokens': tokens,
-        'user': UserProfileSerializer(user).data,
+        'tokens':  tokens,
+        'user':    UserProfileSerializer(user).data,
     })
 
 
@@ -81,14 +81,17 @@ def resend_otp(request):
     serializer = ResendOTPSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    email = serializer.validated_data['email']
-    cache_key = f'otp_resend_{email}'
+    email      = serializer.validated_data['email']
+    cache_key  = f'otp_resend_{email}'
     resend_count = cache.get(cache_key, 0)
     if resend_count >= 3:
-        return Response({'error': 'Too many resend attempts. Please wait before trying again.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        return Response(
+            {'error': 'Too many resend attempts. Please wait before trying again.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
     try:
         user = User.objects.get(email=email, is_verified=False)
-        otp = OTPToken.create_for_user(user, OTPToken.PURPOSE_REGISTRATION)
+        otp  = OTPToken.create_for_user(user, OTPToken.PURPOSE_REGISTRATION)
         send_otp_email(user.email, otp.code, OTPToken.PURPOSE_REGISTRATION)
     except User.DoesNotExist:
         pass
@@ -104,13 +107,17 @@ def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    email = serializer.validated_data['email']
+    email    = serializer.validated_data['email']
     password = serializer.validated_data['password']
-    user = authenticate(request, username=email, password=password)
+    user     = authenticate(request, username=email, password=password)
     if not user:
         return Response({'error': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
     if not user.is_verified:
-        return Response({'error': 'Please verify your email before logging in.', 'needs_verification': True, 'email': email}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {'error': 'Please verify your email before logging in.',
+             'needs_verification': True, 'email': email},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     tokens = get_tokens_for_user(user)
     return Response({'tokens': tokens, 'user': UserProfileSerializer(user).data})
 
@@ -124,7 +131,7 @@ def forgot_password(request):
     email = serializer.validated_data['email']
     try:
         user = User.objects.get(email=email, is_verified=True)
-        otp = OTPToken.create_for_user(user, OTPToken.PURPOSE_PASSWORD_RESET)
+        otp  = OTPToken.create_for_user(user, OTPToken.PURPOSE_PASSWORD_RESET)
         send_otp_email(user.email, otp.code, OTPToken.PURPOSE_PASSWORD_RESET)
     except Exception:
         pass
@@ -137,14 +144,16 @@ def reset_password(request):
     serializer = ResetPasswordSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    email = serializer.validated_data['email']
-    code = serializer.validated_data['code']
+    email        = serializer.validated_data['email']
+    code         = serializer.validated_data['code']
     new_password = serializer.validated_data['new_password']
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
         return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
-    otp = OTPToken.objects.filter(user=user, code=code, purpose=OTPToken.PURPOSE_PASSWORD_RESET, is_used=False).order_by('-created_at').first()
+    otp = OTPToken.objects.filter(
+        user=user, code=code, purpose=OTPToken.PURPOSE_PASSWORD_RESET, is_used=False,
+    ).order_by('-created_at').first()
     if not otp or not otp.is_valid():
         return Response({'error': 'Invalid or expired reset code.'}, status=status.HTTP_400_BAD_REQUEST)
     otp.is_used = True
@@ -164,3 +173,25 @@ def profile(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     serializer.save()
     return Response(serializer.data)
+
+
+# ── Phase 2: Onboarding endpoint ─────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def onboarding(request):
+    """
+    POST /api/auth/onboarding/
+    Body: { role, experience, learning_goal }
+
+    Saves the user's onboarding answers and marks onboarding_done = True.
+    Safe to call again (idempotent) — just updates the values.
+    """
+    serializer = OnboardingSerializer(request.user, data=request.data, partial=True)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    user = serializer.save()
+    return Response({
+        'message': 'Onboarding complete.',
+        'user':    UserProfileSerializer(user).data,
+    })

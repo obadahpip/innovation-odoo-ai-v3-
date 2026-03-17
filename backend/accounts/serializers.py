@@ -23,7 +23,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class OTPVerifySerializer(serializers.Serializer):
     email = serializers.EmailField()
-    code = serializers.CharField(max_length=6, min_length=6)
+    code  = serializers.CharField(max_length=6, min_length=6)
 
 
 class ResendOTPSerializer(serializers.Serializer):
@@ -31,7 +31,7 @@ class ResendOTPSerializer(serializers.Serializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email    = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
 
@@ -40,9 +40,9 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    code = serializers.CharField(max_length=6, min_length=6)
-    new_password = serializers.CharField(validators=[validate_password])
+    email            = serializers.EmailField()
+    code             = serializers.CharField(max_length=6, min_length=6)
+    new_password     = serializers.CharField(validators=[validate_password])
     confirm_password = serializers.CharField()
 
     def validate(self, attrs):
@@ -54,5 +54,26 @@ class ResetPasswordSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'job_title', 'company', 'is_verified', 'created_at']
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'job_title', 'company',
+            'is_verified', 'created_at',
+            # ── Phase 2: onboarding fields ──────────────────────────────
+            'role', 'experience', 'learning_goal', 'onboarding_done',
+        ]
         read_only_fields = ['id', 'email', 'is_verified', 'created_at']
+
+
+class OnboardingSerializer(serializers.ModelSerializer):
+    """Accepts onboarding answers and marks onboarding as complete."""
+
+    class Meta:
+        model = User
+        fields = ['role', 'experience', 'learning_goal']
+
+    def update(self, instance, validated_data):
+        instance.role          = validated_data.get('role', instance.role)
+        instance.experience    = validated_data.get('experience', instance.experience)
+        instance.learning_goal = validated_data.get('learning_goal', instance.learning_goal)
+        instance.onboarding_done = True
+        instance.save()
+        return instance

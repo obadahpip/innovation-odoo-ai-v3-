@@ -23,19 +23,38 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True)
+    # ── Core fields (unchanged) ─────────────────────────────────────────────
+    email      = models.EmailField(unique=True)
     first_name = models.CharField(max_length=100, blank=True)
-    last_name = models.CharField(max_length=100, blank=True)
-    job_title = models.CharField(max_length=150, blank=True)
-    company = models.CharField(max_length=150, blank=True)
+    last_name  = models.CharField(max_length=100, blank=True)
+    job_title  = models.CharField(max_length=150, blank=True)
+    company    = models.CharField(max_length=150, blank=True)
     is_verified = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active   = models.BooleanField(default=True)
+    is_staff    = models.BooleanField(default=False)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    # ── Phase 2: Onboarding fields ─────────────────────────────────────────
+    ROLE_CHOICES = [
+        ('developer',  'Developer'),
+        ('accountant', 'Accountant'),
+        ('manager',    'Manager'),
+        ('student',    'Student'),
+        ('other',      'Other'),
+    ]
+    EXPERIENCE_CHOICES = [
+        ('none',     'None'),
+        ('some',     'Some'),
+        ('advanced', 'Advanced'),
+    ]
+    role            = models.CharField(max_length=20, choices=ROLE_CHOICES, blank=True)
+    experience      = models.CharField(max_length=20, choices=EXPERIENCE_CHOICES, blank=True)
+    learning_goal   = models.TextField(blank=True)
+    onboarding_done = models.BooleanField(default=False)
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'email'
+    USERNAME_FIELD  = 'email'
     REQUIRED_FIELDS = []
 
     class Meta:
@@ -50,18 +69,18 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class OTPToken(models.Model):
-    PURPOSE_REGISTRATION = 'registration'
+    PURPOSE_REGISTRATION  = 'registration'
     PURPOSE_PASSWORD_RESET = 'password_reset'
     PURPOSE_CHOICES = [
-        (PURPOSE_REGISTRATION, 'Registration'),
+        (PURPOSE_REGISTRATION,   'Registration'),
         (PURPOSE_PASSWORD_RESET, 'Password Reset'),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_tokens')
-    code = models.CharField(max_length=6)
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_tokens')
+    code       = models.CharField(max_length=6)
     expires_at = models.DateTimeField()
-    is_used = models.BooleanField(default=False)
-    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
+    is_used    = models.BooleanField(default=False)
+    purpose    = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

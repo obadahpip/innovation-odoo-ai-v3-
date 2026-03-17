@@ -2,25 +2,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
-import anthropic
+from openai import OpenAI
 
 from .models import LearningFile, LessonSlide
 
-client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-MODEL  = "claude-sonnet-4-6"
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _chat(system: str, messages: list, max_tokens: int = 400) -> str:
-    """Single helper that calls the Anthropic Messages API."""
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=max_tokens,
-        system=system,
-        messages=messages,
-    )
-    return response.content[0].text.strip()
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 # ── Slide list ────────────────────────────────────────────────────────────────
@@ -97,19 +83,24 @@ class SlideSimplifyView(APIView):
         except LessonSlide.DoesNotExist:
             return Response({'detail': 'Slide not found.'}, status=404)
 
-        system = (
-            "You are an expert Odoo tutor. Simplify lesson slide content so that a complete "
-            "beginner can understand it easily. Use plain language, short sentences, and a "
-            "friendly tone. Keep it concise (max 150 words). Do not use jargon without explanation. "
-            "Provide only the simplified explanation — no preamble or meta-commentary."
-        )
-        user_prompt = (
-            f"Slide title: {slide.title}\n"
-            f"Slide content:\n{slide.content}"
-        )
+        prompt = f"""You are an expert Odoo tutor. Simplify the following lesson slide content \
+so that a complete beginner can understand it easily. Use plain language, short sentences, \
+and a friendly tone. Keep it concise (max 150 words). Do not use jargon without explanation.
+
+Slide title: {slide.title}
+Slide content:
+{slide.content}
+
+Provide only the simplified explanation — no preamble or meta-commentary."""
 
         try:
-            simplified = _chat(system, [{'role': 'user', 'content': user_prompt}], max_tokens=300)
+            response = client.chat.completions.create(
+                model='gpt-4o',
+                messages=[{'role': 'user', 'content': prompt}],
+                max_tokens=300,
+                temperature=0.5,
+            )
+            simplified = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
@@ -139,24 +130,29 @@ class SlideAskView(APIView):
         except LessonSlide.DoesNotExist:
             return Response({'detail': 'Slide not found.'}, status=404)
 
-        system = (
-            f"You are an expert Odoo tutor helping a student understand a lesson slide.\n"
-            f"Answer the student's question clearly and concisely. Stay focused on the slide context.\n"
-            f"If the question is unrelated to the slide, gently redirect them.\n\n"
-            f"Lesson: {slide.file.title}\n"
-            f"Section: {slide.file.section.name}\n"
-            f"Slide {slide.slide_number}: {slide.title}\n"
-            f"Slide content: {slide.content[:800]}"
-        )
+        system_prompt = f"""You are an expert Odoo tutor helping a student understand a lesson slide.
+Answer the student's question clearly and concisely. Stay focused on the slide context.
+If the question is unrelated to the slide, gently redirect them.
 
-        messages = []
+Lesson: {slide.file.title}
+Section: {slide.file.section.name}
+Slide {slide.slide_number}: {slide.title}
+Slide content: {slide.content[:800]}"""
+
+        messages = [{'role': 'system', 'content': system_prompt}]
         for msg in history[-4:]:
             if msg.get('role') in ('user', 'assistant'):
                 messages.append({'role': msg['role'], 'content': msg['content']})
         messages.append({'role': 'user', 'content': question})
 
         try:
-            answer = _chat(system, messages, max_tokens=400)
+            response = client.chat.completions.create(
+                model='gpt-4o',
+                messages=messages,
+                max_tokens=400,
+                temperature=0.7,
+            )
+            answer = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
@@ -187,25 +183,31 @@ class GlobalAIView(APIView):
             for s in sections
         ])
 
-        system = (
-            "You are a helpful AI assistant for an Odoo learning platform called Innovation Odoo AI.\n"
-            "Your role is to help users navigate the course, understand what topics are covered, "
-            "recommend lessons, and answer general questions about Odoo.\n\n"
-            f"The platform has 81 lessons organized into 9 sections:\n{section_summary}\n\n"
-            "Be concise, friendly, and helpful. If a user asks about a specific Odoo feature, "
-            "tell them which section and lesson covers it. If they ask which lesson to start with, "
-            "ask about their role and recommend accordingly.\n"
-            "Do not answer questions unrelated to Odoo or this course."
-        )
+        system_prompt = f"""You are a helpful AI assistant for an Odoo learning platform called Innovation Odoo AI.
+Your role is to help users navigate the course, understand what topics are covered, recommend lessons, \
+and answer general questions about Odoo.
 
-        messages = []
+The platform has 81 lessons organized into 9 sections:
+{section_summary}
+
+Be concise, friendly, and helpful. If a user asks about a specific Odoo feature, tell them which section \
+and lesson covers it. If they ask which lesson to start with, ask about their role and recommend accordingly.
+Do not answer questions unrelated to Odoo or this course."""
+
+        messages = [{'role': 'system', 'content': system_prompt}]
         for msg in history[-6:]:
             if msg.get('role') in ('user', 'assistant'):
                 messages.append({'role': msg['role'], 'content': msg['content']})
         messages.append({'role': 'user', 'content': message})
 
         try:
-            reply = _chat(system, messages, max_tokens=400)
+            response = client.chat.completions.create(
+                model='gpt-4o',
+                messages=messages,
+                max_tokens=400,
+                temperature=0.7,
+            )
+            reply = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
@@ -233,24 +235,28 @@ class TutorChatView(APIView):
         if file_id:
             try:
                 file = LearningFile.objects.select_related('section').get(id=file_id)
-                context = f"Lesson: {file.title}, Section: {file.section.name}\n"
+                context = f"Lesson: {file.title}, Section: {file.section.name}"
             except LearningFile.DoesNotExist:
                 pass
 
-        system = (
-            f"You are an expert Odoo tutor. Help the student understand the current lesson.\n"
-            f"{context}"
-            "Be concise, clear, and encouraging. Max 200 words per reply."
-        )
+        system_prompt = f"""You are an expert Odoo tutor. Help the student understand the current lesson.
+{context}
+Be concise, clear, and encouraging. Max 200 words per reply."""
 
-        messages = []
+        messages = [{'role': 'system', 'content': system_prompt}]
         for msg in history[-6:]:
             if msg.get('role') in ('user', 'assistant'):
                 messages.append({'role': msg['role'], 'content': msg['content']})
         messages.append({'role': 'user', 'content': message})
 
         try:
-            reply = _chat(system, messages, max_tokens=400)
+            response = client.chat.completions.create(
+                model='gpt-4o',
+                messages=messages,
+                max_tokens=400,
+                temperature=0.7,
+            )
+            reply = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
 
