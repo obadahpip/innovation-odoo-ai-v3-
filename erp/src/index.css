@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════
+   ODOO DARK THEME — extracted from live Odoo screenshots
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Page surfaces ─────────────────────────────────────── */
+  --bg:              #1a1b2e;   /* main page background       */
+  --surface:         #252638;   /* cards, panels, dropdowns   */
+  --surface2:        #2e2f45;   /* elevated / hover           */
+  --surface3:        #363750;   /* active / selected          */
+
+  /* ── Borders ───────────────────────────────────────────── */
+  --border:          rgba(255,255,255,0.09);
+  --border2:         rgba(255,255,255,0.15);
+
+  /* ── Text ──────────────────────────────────────────────── */
+  --text:            #dcdce4;   /* primary text               */
+  --text2:           #9899ac;   /* secondary / muted          */
+  --text3:           #6b6c7e;   /* placeholder / hint         */
+
+  /* ── Brand accents ─────────────────────────────────────── */
+  --teal:            #00b5b5;   /* active states, links       */
+  --teal-light:      #00d4d4;
+  --purple:          #714b67;   /* primary buttons            */
+  --purple2:         #875a7b;   /* button hover               */
+  --purple3:         #a36897;   /* light purple accent        */
+
+  /* ── Semantic ──────────────────────────────────────────── */
+  --success:         #2ecc71;
+  --success-bg:      rgba(46,204,113,0.15);
+  --warning:         #f0ad4e;
+  --warning-bg:      rgba(240,173,78,0.15);
+  --danger:          #e74c3c;
+  --danger-bg:       rgba(231,76,60,0.15);
+  --info:            #3498db;
+  --info-bg:         rgba(52,152,219,0.15);
+
+  /* ── Layout dims ───────────────────────────────────────── */
+  --navbar-h:        46px;
+  --sidebar-w:       182px;
+  --sidebar-w-sm:    46px;
+
+  /* ── Shadows ───────────────────────────────────────────── */
+  --shadow-sm:       0 1px 4px rgba(0,0,0,0.35);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.45);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.55);
+
+  /* ── Transitions ───────────────────────────────────────── */
+  --t:               0.15s ease;
+
+  /* ── Z-layers ──────────────────────────────────────────── */
+  --z-sidebar:    900;
+  --z-navbar:    1000;
+  --z-dropdown:  1100;
+  --z-modal:     1200;
+  --z-overlay:   1300;
+  --z-toast:     1400;
+  --z-task:      1500;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body {
+  font-family: "LGC Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--teal); text-decoration: none; }
+a:hover { color: var(--teal-light); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* ══════════════════════════════════════════════════════════════════
+   BUTTON SYSTEM
+   ══════════════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; font-size: 13px; font-weight: 500;
+  border-radius: 4px; border: 1px solid transparent;
+  cursor: pointer; white-space: nowrap; user-select: none;
+  transition: background var(--t), border-color var(--t), opacity var(--t);
+  line-height: 1.6;
+}
+.btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Primary — purple */
+.btn-primary { background: var(--purple); border-color: var(--purple); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--purple2); border-color: var(--purple2); }
+
+/* Secondary — outline */
+.btn-secondary { background: transparent; border-color: var(--border2); color: var(--text); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface2); }
+
+/* Danger */
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #c0392b; }
+
+/* Link style */
+.btn-link { background: none; border: none; color: var(--teal); padding: 4px 6px; }
+.btn-link:hover { color: var(--teal-light); }
+
+.btn-sm { padding: 2px 8px; font-size: 12px; }
+.btn-icon { padding: 4px 8px; min-width: 30px; justify-content: center; }
+
+/* ══════════════════════════════════════════════════════════════════
+   INPUT SYSTEM
+   ══════════════════════════════════════════════════════════════════ */
+.o-input {
+  width: 100%; padding: 4px 8px; font-size: 13px;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border2); border-radius: 4px;
+  line-height: 1.6; transition: border-color var(--t), box-shadow var(--t);
+  font-family: inherit;
+}
+.o-input::placeholder { color: var(--text3); }
+.o-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px rgba(0,181,181,0.2); }
+.o-input:read-only { background: var(--surface2); cursor: default; opacity: 0.7; }
+
+/* ══════════════════════════════════════════════════════════════════
+   BADGE / STATUS
+   ══════════════════════════════════════════════════════════════════ */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 1px 8px; font-size: 11px; font-weight: 600;
+  border-radius: 20px; white-space: nowrap;
+}
+.badge-success { background: var(--success-bg); color: var(--success); }
+.badge-warning { background: var(--warning-bg); color: var(--warning); }
+.badge-danger  { background: var(--danger-bg);  color: var(--danger);  }
+.badge-info    { background: var(--info-bg);     color: var(--info);    }
+.badge-muted   { background: var(--surface3);    color: var(--text2);   }
+.badge-purple  { background: rgba(113,75,103,0.3); color: var(--purple3); }
+
+/* ══════════════════════════════════════════════════════════════════
+   SPINNER
+   ══════════════════════════════════════════════════════════════════ */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: inline-block;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   EMPTY STATE
+   ══════════════════════════════════════════════════════════════════ */
+.empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 64px 24px;
+  color: var(--text2); text-align: center;
+}
+.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text); }
+.empty-state p  { font-size: 13px; max-width: 380px; line-height: 1.6; }
+
+/* ══════════════════════════════════════════════════════════════════
+   MISC UTILITIES
+   ══════════════════════════════════════════════════════════════════ */
+.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
