@@ -1,0 +1,22 @@
+/* ═══════════════════════════════════════════════════════════════
+   erp-fixes.css  — Batch 1 Fix 3  (clean, targeted rules only)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── CRM Kanban column — Odoo 19 style (no box border on column) ─
+   CRMPipeline.jsx renders columns with inline styles using
+   var(--surface) and var(--border). Now those vars are defined
+   in index.css so the columns will render. But we also want the
+   column to look like Odoo 19 — no outer box, just a header line. */
+
+/* ── Full height for AppHome — override the minHeight:100vh ─────
+   AppHome inline style sets minHeight:100vh which creates a black
+   gap when inside a flex container that already fills 100%.       */
+
+/* Target the root <div> inside ERPShell's Outlet */
+.o-home,
+[data-module="home"] {
+  flex: 1 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+}

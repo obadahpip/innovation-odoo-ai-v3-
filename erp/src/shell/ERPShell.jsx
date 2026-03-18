@@ -1,6 +1,7 @@
 /**
  * ERPShell.jsx — Main ERP shell with nav config for all 57 modules
  * Odoo 19.0 Innovation ERP Simulator
+ * Updated: Batch 2 — Website, eCommerce, LiveChat, eLearning, Forum, Blog, Studio
  */
 import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
@@ -102,7 +103,7 @@ export const NAV_MENUS = {
       { label:'Dashboard', path:'/erp/accounting' },
     ]},
     { label:'Customers', items:[
-      { label:'Invoices', path:'/erp/accounting/invoices' },
+      { label:'Invoices',     path:'/erp/accounting/invoices' },
       { label:'Credit Notes', path:'/erp/accounting/invoices' },
     ]},
     { label:'Vendors', items:[
@@ -113,21 +114,28 @@ export const NAV_MENUS = {
   ],
   expenses: [
     { label:'My Expenses', items:[] },
-    { label:'Expense Reports', items:[{ label:'My Expense Reports', path:'/erp/expenses' },{ label:'All Expense Reports', path:'/erp/expenses' }]},
+    { label:'Expense Reports', items:[
+      { label:'My Expense Reports',  path:'/erp/expenses' },
+      { label:'All Expense Reports', path:'/erp/expenses' },
+    ]},
     { label:'Reporting', items:[] },
     { label:'Configuration', items:[] },
   ],
   purchase: [
     { label:'Purchase', items:[
-      { label:'Requests for Quotation', path:'/erp/purchase/orders' },
-      { label:'Purchase Orders', path:'/erp/purchase/orders' },
+      { label:'Requests for Quotation', path:'/erp/purchase/rfq' },
+      { label:'Purchase Orders',        path:'/erp/purchase/orders' },
+    ]},
+    { label:'Products', items:[
+      { label:'Products',      path:'/erp/purchase/products' },
+      { label:'Vendor Prices', path:'/erp/purchase/pricelists' },
     ]},
     { label:'Reporting', items:[] },
     { label:'Configuration', items:[] },
   ],
   employees: [
     { label:'Employees', items:[
-      { label:'Employees', path:'/erp/employees' },
+      { label:'Employees',   path:'/erp/employees' },
       { label:'Departments', path:'/erp/employees/departments' },
     ]},
     { label:'Reporting', items:[] },
@@ -135,23 +143,77 @@ export const NAV_MENUS = {
   ],
   helpdesk: [
     { label:'Tickets', items:[
-      { label:'My Tickets', path:'/erp/helpdesk' },
-      { label:'All Tickets', path:'/erp/helpdesk' },
+      { label:'My Tickets',      path:'/erp/helpdesk' },
+      { label:'All Tickets',     path:'/erp/helpdesk/all' },
     ]},
     { label:'Reporting', items:[] },
-    { label:'Configuration', items:[] },
+    { label:'Configuration', items:[
+      { label:'Stages',  path:'/erp/helpdesk/stages' },
+      { label:'Teams',   path:'/erp/helpdesk/teams' },
+    ]},
+  ],
+  discuss: [
+    { label:'Discuss', items:[] },
+  ],
+  email_marketing: [
+    { label:'Email Marketing', items:[
+      { label:'Mailings',         path:'/erp/email-marketing' },
+      { label:'Mailing Lists',    path:'/erp/email-marketing/lists' },
+    ]},
+    { label:'SMS', items:[
+      { label:'SMS Marketing',    path:'/erp/sms' },
+    ]},
+    { label:'Marketing Automation', items:[
+      { label:'Automation',       path:'/erp/marketing-automation' },
+    ]},
+    { label:'Reporting', items:[] },
   ],
   timesheets: [
     { label:'Timesheets', items:[
-      { label:'My Timesheets', path:'/erp/timesheets' },
+      { label:'My Timesheets',  path:'/erp/timesheets' },
       { label:'All Timesheets', path:'/erp/timesheets' },
     ]},
     { label:'Reporting', items:[] },
   ],
+  fleet: [
+    { label:'Fleet', items:[
+      { label:'Vehicles',   path:'/erp/fleet' },
+      { label:'Contracts',  path:'/erp/fleet/contracts' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[
+      { label:'Models',   path:'/erp/fleet/models' },
+    ]},
+  ],
+  events: [
+    { label:'Events', items:[
+      { label:'Events',  path:'/erp/events' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[] },
+  ],
+  calendar: [
+    { label:'Calendar', items:[] },
+  ],
+  maintenance: [
+    { label:'Maintenance', items:[
+      { label:'Maintenance Requests', path:'/erp/maintenance' },
+      { label:'Equipment',            path:'/erp/maintenance/equipment' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[
+      { label:'Stages', path:'/erp/maintenance/stages' },
+    ]},
+  ],
+  planning: [
+    { label:'Planning', items:[
+      { label:'Planning', path:'/erp/planning' },
+    ]},
+  ],
   project: [
     { label:'Project', items:[
       { label:'All Projects', path:'/erp/project' },
-      { label:'All Tasks', path:'/erp/project/tasks' },
+      { label:'All Tasks',    path:'/erp/project/tasks' },
     ]},
     { label:'Reporting', items:[] },
     { label:'Configuration', items:[] },
@@ -159,18 +221,123 @@ export const NAV_MENUS = {
   manufacturing: [
     { label:'Manufacturing', items:[
       { label:'Manufacturing Orders', path:'/erp/manufacturing' },
-      { label:'Bill of Materials', path:'/erp/manufacturing' },
+      { label:'Work Orders',          path:'/erp/manufacturing/work' },
+    ]},
+    { label:'Products', items:[
+      { label:'Bills of Materials', path:'/erp/manufacturing/bom' },
+      { label:'Products',           path:'/erp/manufacturing/products' },
+    ]},
+    { label:'PLM', items:[
+      { label:'Engineering Changes', path:'/erp/plm' },
     ]},
     { label:'Reporting', items:[] },
     { label:'Configuration', items:[] },
   ],
   recruitment: [
     { label:'Recruitment', items:[
-      { label:'Applications', path:'/erp/recruitment' },
-      { label:'All Applications', path:'/erp/recruitment' },
+      { label:'All Applications',  path:'/erp/recruitment' },
+      { label:'New Applications',  path:'/erp/recruitment/new-apps' },
+    ]},
+    { label:'Job Positions', items:[
+      { label:'Job Positions',     path:'/erp/recruitment/positions' },
     ]},
     { label:'Reporting', items:[] },
     { label:'Configuration', items:[] },
+  ],
+  expenses: [
+    { label:'My Expenses', items:[
+      { label:'My Expenses',        path:'/erp/expenses' },
+      { label:'My Reports',         path:'/erp/expenses/reports' },
+    ]},
+    { label:'Managers', items:[
+      { label:'All Expenses',       path:'/erp/expenses/all' },
+      { label:'Expense Reports',    path:'/erp/expenses/all-reports' },
+    ]},
+    { label:'Reporting', items:[] },
+  ],
+  payroll: [
+    { label:'Employees', items:[
+      { label:'Payslips',           path:'/erp/payroll' },
+      { label:'All Payslips',       path:'/erp/payroll/all' },
+      { label:'Payslip Batches',    path:'/erp/payroll/batches' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[
+      { label:'Salary Structures',  path:'/erp/payroll/structures' },
+    ]},
+  ],
+  time_off: [
+    { label:'My Time Off', items:[
+      { label:'My Time Off',        path:'/erp/time-off' },
+      { label:'My Allocations',     path:'/erp/time-off/allocations' },
+    ]},
+    { label:'Managers', items:[
+      { label:'All Time Off',       path:'/erp/time-off/all' },
+      { label:'All Allocations',    path:'/erp/time-off/all-allocations' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[
+      { label:'Leave Types',        path:'/erp/time-off/types' },
+    ]},
+  ],
+
+  // ── Batch 2: Website modules ─────────────────────────────────
+  website: [
+    { label:'Website', items:[
+      { label:'Pages', path:'/erp/website' },
+    ]},
+    { label:'eCommerce', items:[
+      { label:'Products',  path:'/erp/ecommerce' },
+      { label:'Orders',    path:'/erp/ecommerce/orders' },
+      { label:'Customers', path:'/erp/contacts' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[
+      { label:'Settings', path:'/erp/website/config' },
+    ]},
+  ],
+  ecommerce: [
+    { label:'eCommerce', items:[
+      { label:'Products', path:'/erp/ecommerce' },
+      { label:'Orders',   path:'/erp/ecommerce/orders' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[] },
+  ],
+  livechat: [
+    { label:'Live Chat', items:[
+      { label:'Channels', path:'/erp/livechat' },
+    ]},
+    { label:'Reporting', items:[] },
+    { label:'Configuration', items:[] },
+  ],
+  elearning: [
+    { label:'eLearning', items:[
+      { label:'Courses', path:'/erp/elearning' },
+    ]},
+    { label:'Configuration', items:[] },
+  ],
+  forum: [
+    { label:'Forum', items:[
+      { label:'Forums', path:'/erp/forum' },
+    ]},
+    { label:'Configuration', items:[] },
+  ],
+  blog: [
+    { label:'Blog', items:[
+      { label:'Blog Posts', path:'/erp/blog' },
+      { label:'Blogs',      path:'/erp/blog' },
+    ]},
+    { label:'Configuration', items:[] },
+  ],
+  studio: [
+    { label:'Studio', items:[
+      { label:'Models',            path:'/erp/studio' },
+      { label:'Views',             path:'/erp/studio/views' },
+      { label:'Automated Actions', path:'/erp/studio/actions' },
+      { label:'PDF Reports',       path:'/erp/studio/reports' },
+      { label:'Approval Rules',    path:'/erp/studio/rules' },
+    ]},
   ],
 }
 
@@ -179,8 +346,8 @@ export const SIDEBAR_CONFIG = {
   crm: {
     sections: [
       { label: 'PIPELINE', items: [
-        { label: 'My Pipeline',  path: '/erp/crm/pipeline', icon: '⭐' },
-        { label: 'All Leads',    path: '/erp/crm/leads',    icon: '📋' },
+        { label: 'My Pipeline', path: '/erp/crm/pipeline', icon: '⭐' },
+        { label: 'All Leads',   path: '/erp/crm/leads',    icon: '📋' },
       ]},
     ],
   },
@@ -202,9 +369,9 @@ export const SIDEBAR_CONFIG = {
   accounting: {
     sections: [
       { label: 'ACCOUNTING', items: [
-        { label: 'Dashboard',        path: '/erp/accounting',          icon: '📊' },
-        { label: 'Customer Invoices',path: '/erp/accounting/invoices', icon: '📋' },
-        { label: 'Vendor Bills',     path: '/erp/accounting/bills',    icon: '🧾' },
+        { label: 'Dashboard',         path: '/erp/accounting',          icon: '📊' },
+        { label: 'Customer Invoices', path: '/erp/accounting/invoices', icon: '📋' },
+        { label: 'Vendor Bills',      path: '/erp/accounting/bills',    icon: '🧾' },
       ]},
     ],
   },
@@ -228,15 +395,91 @@ export const SIDEBAR_CONFIG = {
   },
   purchase: {
     sections: [{ label: 'PURCHASE', items: [
-      { label: 'Requests for Quotation', path: '/erp/purchase/orders', icon: '📝' },
+      { label: 'Requests for Quotation', path: '/erp/purchase/rfq',    icon: '📝' },
       { label: 'Purchase Orders',        path: '/erp/purchase/orders', icon: '🛍️' },
     ]}],
   },
+  expenses: {
+    sections: [
+      { label: 'MY EXPENSES', items: [
+        { label: 'My Expenses',       path: '/erp/expenses',         icon: '🧾' },
+        { label: 'My Reports',        path: '/erp/expenses/reports', icon: '📋' },
+      ]},
+      { label: 'MANAGERS', items: [
+        { label: 'All Expenses',      path: '/erp/expenses/all',     icon: '📊' },
+        { label: 'Expense Reports',   path: '/erp/expenses/all-reports', icon: '📁' },
+      ]},
+    ],
+  },
+  payroll: {
+    sections: [
+      { label: 'EMPLOYEES', items: [
+        { label: 'Payslips',         path: '/erp/payroll',          icon: '💸' },
+        { label: 'All Payslips',     path: '/erp/payroll/all',      icon: '📋' },
+        { label: 'Batches',          path: '/erp/payroll/batches',  icon: '📦' },
+      ]},
+      { label: 'CONFIGURATION', items: [
+        { label: 'Salary Structures',path: '/erp/payroll/structures',icon: '⚙' },
+      ]},
+    ],
+  },
+  time_off: {
+    sections: [
+      { label: 'MY TIME OFF', items: [
+        { label: 'My Time Off',      path: '/erp/time-off',               icon: '🏖' },
+        { label: 'My Allocations',   path: '/erp/time-off/allocations',   icon: '📋' },
+      ]},
+      { label: 'MANAGERS', items: [
+        { label: 'All Time Off',     path: '/erp/time-off/all',           icon: '📊' },
+        { label: 'All Allocations',  path: '/erp/time-off/all-allocations',icon: '📁' },
+      ]},
+      { label: 'CONFIGURATION', items: [
+        { label: 'Leave Types',      path: '/erp/time-off/types',         icon: '⚙' },
+      ]},
+    ],
+  },
+  recruitment: {
+    sections: [
+      { label: 'RECRUITMENT', items: [
+        { label: 'Applications',     path: '/erp/recruitment',           icon: '👔' },
+        { label: 'Job Positions',    path: '/erp/recruitment/positions', icon: '📋' },
+      ]},
+    ],
+  },
   helpdesk: {
-    sections: [{ label: 'HELPDESK', items: [
-      { label: 'My Tickets',  path: '/erp/helpdesk', icon: '🎧' },
-      { label: 'All Tickets', path: '/erp/helpdesk', icon: '📋' },
+    sections: [
+      { label: 'HELPDESK', items: [
+        { label: 'My Tickets',   path: '/erp/helpdesk',          icon: '🎧' },
+        { label: 'All Tickets',  path: '/erp/helpdesk/all',      icon: '📋' },
+      ]},
+      { label: 'CONFIGURATION', items: [
+        { label: 'Stages',       path: '/erp/helpdesk/stages',   icon: '📌' },
+        { label: 'Teams',        path: '/erp/helpdesk/teams',    icon: '👥' },
+      ]},
+    ],
+  },
+  discuss: {
+    sections: [{ label: 'DISCUSS', items: [
+      { label: 'Inbox',    path: '/erp/discuss', icon: '📥' },
+      { label: 'Channels', path: '/erp/discuss', icon: '#' },
     ]}],
+  },
+  email_marketing: {
+    sections: [
+      { label: 'EMAIL MARKETING', items: [
+        { label: 'Email Marketing',      path: '/erp/email-marketing',  icon: '📧' },
+        { label: 'Mailing Lists',        path: '/erp/email-marketing/lists', icon: '📋' },
+      ]},
+      { label: 'SMS', items: [
+        { label: 'SMS Marketing',        path: '/erp/sms',               icon: '📱' },
+      ]},
+      { label: 'AUTOMATION', items: [
+        { label: 'Marketing Automation', path: '/erp/marketing-automation', icon: '🤖' },
+      ]},
+      { label: 'SIGN', items: [
+        { label: 'Sign Templates',       path: '/erp/sign',              icon: '✍' },
+      ]},
+    ],
   },
   timesheets: {
     sections: [{ label: 'TIMESHEETS', items: [
@@ -244,10 +487,140 @@ export const SIDEBAR_CONFIG = {
       { label: 'My Timesheets',  path: '/erp/timesheets', icon: '📋' },
     ]}],
   },
+  fleet: {
+    sections: [
+      { label: 'FLEET', items: [
+        { label: 'Vehicles',  path: '/erp/fleet',           icon: '🚗' },
+        { label: 'Contracts', path: '/erp/fleet/contracts', icon: '📋' },
+      ]},
+      { label: 'CONFIGURATION', items: [
+        { label: 'Models',    path: '/erp/fleet/models',    icon: '🏎' },
+      ]},
+    ],
+  },
+  events: {
+    sections: [{ label: 'EVENTS', items: [
+      { label: 'Events', path: '/erp/events', icon: '📅' },
+    ]}],
+  },
+  maintenance: {
+    sections: [
+      { label: 'MAINTENANCE', items: [
+        { label: 'Requests',  path: '/erp/maintenance',           icon: '🔧' },
+        { label: 'Equipment', path: '/erp/maintenance/equipment', icon: '⚙' },
+      ]},
+      { label: 'CONFIGURATION', items: [
+        { label: 'Stages',    path: '/erp/maintenance/stages',    icon: '📌' },
+      ]},
+    ],
+  },
+  planning: {
+    sections: [{ label: 'PLANNING', items: [
+      { label: 'Planning', path: '/erp/planning', icon: '📅' },
+    ]}],
+  },
+  surveys: {
+    sections: [{ label: 'SURVEYS', items: [
+      { label: 'Surveys',       path: '/erp/surveys',        icon: '📊' },
+      { label: 'Configuration', path: '/erp/surveys/config', icon: '⚙' },
+    ]}],
+  },
+  rental: {
+    sections: [{ label: 'RENTAL', items: [
+      { label: 'Rental Orders', path: '/erp/rental',          icon: '📋' },
+      { label: 'Products',      path: '/erp/rental/products', icon: '📦' },
+    ]}],
+  },
+  appointments: {
+    sections: [
+      { label: 'APPOINTMENTS', items: [
+        { label: 'Appointments',      path: '/erp/appointments',       icon: '📅' },
+        { label: 'Appointment Types', path: '/erp/appointments/types', icon: '⚙' },
+      ]},
+    ],
+  },
+  data_cleaning: {
+    sections: [{ label: 'DATA CLEANING', items: [
+      { label: 'Deduplication',  path: '/erp/data-cleaning',       icon: '🔀' },
+      { label: 'Cleaning Rules', path: '/erp/data-cleaning/rules', icon: '🧹' },
+    ]}],
+  },
+  inventory: {
+    sections: [
+      { label: 'PRODUCTS', items: [
+        { label: 'Products',           path: '/erp/inventory/products', icon: '📦' },
+        { label: 'Lots & Serials',     path: '/erp/inventory/lots',     icon: '🔢' },
+      ]},
+      { label: 'OPERATIONS', items: [
+        { label: 'Transfers',          path: '/erp/inventory/transfers', icon: '🔄' },
+        { label: 'Physical Inventory', path: '/erp/inventory/physical',  icon: '📋' },
+      ]},
+      { label: 'CONFIGURATION', items: [
+        { label: 'Warehouses', path: '/erp/inventory/warehouses', icon: '🏭' },
+        { label: 'Settings',   path: '/erp/inventory/config',     icon: '⚙' },
+      ]},
+    ],
+  },
   manufacturing: {
-    sections: [{ label: 'MANUFACTURING', items: [
-      { label: 'Manufacturing Orders', path: '/erp/manufacturing', icon: '🏭' },
-      { label: 'Bill of Materials',    path: '/erp/manufacturing', icon: '📋' },
+    sections: [
+      { label: 'MANUFACTURING', items: [
+        { label: 'Manufacturing Orders', path: '/erp/manufacturing',      icon: '🏭' },
+        { label: 'Work Orders',          path: '/erp/manufacturing/work', icon: '🔧' },
+      ]},
+      { label: 'PRODUCTS', items: [
+        { label: 'Bills of Materials', path: '/erp/manufacturing/bom',     icon: '📋' },
+        { label: 'Products',           path: '/erp/manufacturing/products',icon: '📦' },
+      ]},
+      { label: 'PLM', items: [
+        { label: 'Engineering Changes', path: '/erp/plm', icon: '📝' },
+      ]},
+    ],
+  },
+
+  // ── Batch 2 ──────────────────────────────────────────────────
+  website: {
+    sections: [{ label: 'WEBSITE', items: [
+      { label: 'Pages',     path: '/erp/website',    icon: '📄' },
+      { label: 'eCommerce', path: '/erp/ecommerce',  icon: '🛒' },
+      { label: 'Blog',      path: '/erp/blog',       icon: '📝' },
+      { label: 'eLearning', path: '/erp/elearning',  icon: '🎓' },
+      { label: 'Forum',     path: '/erp/forum',      icon: '💬' },
+      { label: 'Live Chat', path: '/erp/livechat',   icon: '💬' },
+    ]}],
+  },
+  ecommerce: {
+    sections: [{ label: 'ECOMMERCE', items: [
+      { label: 'Products', path: '/erp/ecommerce',        icon: '📦' },
+      { label: 'Orders',   path: '/erp/ecommerce/orders', icon: '🛒' },
+    ]}],
+  },
+  livechat: {
+    sections: [{ label: 'LIVE CHAT', items: [
+      { label: 'Channels', path: '/erp/livechat', icon: '💬' },
+    ]}],
+  },
+  elearning: {
+    sections: [{ label: 'ELEARNING', items: [
+      { label: 'Courses', path: '/erp/elearning', icon: '🎓' },
+    ]}],
+  },
+  forum: {
+    sections: [{ label: 'FORUM', items: [
+      { label: 'Forums', path: '/erp/forum', icon: '💬' },
+    ]}],
+  },
+  blog: {
+    sections: [{ label: 'BLOG', items: [
+      { label: 'Blog Posts', path: '/erp/blog', icon: '📝' },
+    ]}],
+  },
+  studio: {
+    sections: [{ label: 'STUDIO', items: [
+      { label: 'Models',            path: '/erp/studio',          icon: '🗄' },
+      { label: 'Views',             path: '/erp/studio/views',    icon: '🖼' },
+      { label: 'Automated Actions', path: '/erp/studio/actions',  icon: '⚡' },
+      { label: 'PDF Reports',       path: '/erp/studio/reports',  icon: '📄' },
+      { label: 'Approval Rules',    path: '/erp/studio/rules',    icon: '✅' },
     ]}],
   },
 }
@@ -261,11 +634,38 @@ function getActiveApp(pathname) {
   if (pathname.startsWith('/erp/expenses'))        return 'expenses'
   if (pathname.startsWith('/erp/employees'))       return 'employees'
   if (pathname.startsWith('/erp/project'))         return 'project'
+  if (pathname.startsWith('/erp/inventory'))       return 'inventory'
   if (pathname.startsWith('/erp/purchase'))        return 'purchase'
+  if (pathname.startsWith('/erp/plm'))             return 'manufacturing'
   if (pathname.startsWith('/erp/helpdesk'))        return 'helpdesk'
+  if (pathname.startsWith('/erp/discuss'))         return 'discuss'
+  if (pathname.startsWith('/erp/email-marketing'))  return 'email_marketing'
+  if (pathname.startsWith('/erp/sms'))              return 'email_marketing'
+  if (pathname.startsWith('/erp/social'))           return 'email_marketing'
+  if (pathname.startsWith('/erp/marketing-automation')) return 'email_marketing'
+  if (pathname.startsWith('/erp/sign'))             return 'email_marketing'
   if (pathname.startsWith('/erp/timesheets'))      return 'timesheets'
+  if (pathname.startsWith('/erp/fleet'))            return 'fleet'
+  if (pathname.startsWith('/erp/events'))           return 'events'
+  if (pathname.startsWith('/erp/calendar'))         return 'calendar'
+  if (pathname.startsWith('/erp/maintenance'))      return 'maintenance'
+  if (pathname.startsWith('/erp/planning'))         return 'planning'
+  if (pathname.startsWith('/erp/surveys'))          return 'surveys'
+  if (pathname.startsWith('/erp/rental'))           return 'rental'
+  if (pathname.startsWith('/erp/appointments'))     return 'appointments'
+  if (pathname.startsWith('/erp/data-cleaning'))    return 'data_cleaning'
   if (pathname.startsWith('/erp/manufacturing'))   return 'manufacturing'
   if (pathname.startsWith('/erp/recruitment'))     return 'recruitment'
+  if (pathname.startsWith('/erp/time-off'))         return 'time_off'
+  if (pathname.startsWith('/erp/payroll'))          return 'payroll'
+  // ── Batch 2 ──────────────────────────────────────────────────
+  if (pathname.startsWith('/erp/studio'))          return 'studio'
+  if (pathname.startsWith('/erp/ecommerce'))       return 'ecommerce'
+  if (pathname.startsWith('/erp/livechat'))        return 'livechat'
+  if (pathname.startsWith('/erp/elearning'))       return 'elearning'
+  if (pathname.startsWith('/erp/forum'))           return 'forum'
+  if (pathname.startsWith('/erp/blog'))            return 'blog'
+  if (pathname.startsWith('/erp/website'))         return 'website'
   return null
 }
 
@@ -276,10 +676,10 @@ export default function ERPShell() {
   const activeApp  = getActiveApp(location.pathname)
   const navMenus   = NAV_MENUS[activeApp] || []
   const sidebarCfg = SIDEBAR_CONFIG[activeApp]
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const [openDropdown, setOpenDropdown] = useState(null)
 
-    useEffect(() => {
+  useEffect(() => {
     const close = () => setOpenDropdown(null)
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
@@ -296,7 +696,7 @@ export default function ERPShell() {
         dropdowns={Object.fromEntries(
           navMenus.filter(m => m.items?.length).map(m => [m.label, m.items])
         )}
-        onMenuClick={label => setOpenDropdown(o => o === label ? null : label)}
+        onMenuClick={label => setTimeout(() => setOpenDropdown(o => o === label ? null : label), 0)}
         onDropdownNavigate={path => { navigate(path); setOpenDropdown(null) }}
       />
 

@@ -1,73 +1,125 @@
 /**
- * ElearningPage.jsx — eLearning Courses
- * Odoo 19.0 model: slide.channel
- * Route base: /erp/elearning
- * Sub-nav: ['Courses', 'Contents', 'Members', 'Reporting', 'Configuration']
+ * ElearningPage.jsx — eLearning module
+ * Lesson 37: eLearning
+ * Selectors: create-button, field-description, field-name, list-row, new-button, save-button
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { GenericList, GenericForm, StateBadge, PriorityStars, FieldRow } from '../ModuleFactory.jsx'
-import ActionBar from '@shell/ActionBar.jsx'
+import WebsiteShell from '../website/WebsiteShell'
+import { PageHeader, GenericList, GenericForm, StatusBadge, PublishToggle } from '../website/websiteHelpers'
+import { useRecordList } from '@data/useRecord.js'
+import { createRecord, getRecord, updateRecord } from '@data/db.js'
 
-const STATE_MAP = {
-  'published':{label:'Published',color:'var(--success)',bg:'rgba(46,204,113,0.15)'},
-  'unpublished':{label:'Unpublished',color:'var(--text3)',bg:'var(--surface3)'},
+async function seedCourses() {
+  const { listRecords } = await import('@data/db.js')
+  const existing = await listRecords('slide.channel')
+  if (existing.length > 0) return
+  const courses = [
+    { name: 'Odoo 19 Basics',          website_published: true,  members_count: 12, slides_count: 8,  enroll: 'public',     description: 'Introduction to Odoo for new users.' },
+    { name: 'Advanced Accounting',     website_published: true,  members_count: 5,  slides_count: 14, enroll: 'payment',    description: 'Deep dive into Odoo Accounting module.' },
+    { name: 'Website & eCommerce',     website_published: false, members_count: 0,  slides_count: 6,  enroll: 'public',     description: 'Build and manage your online store.' },
+    { name: 'HR Management',           website_published: true,  members_count: 8,  slides_count: 10, enroll: 'invite',     description: 'Manage employees, leaves and payroll.' },
+  ]
+  for (const c of courses) await createRecord('slide.channel', c)
 }
 
-const COLUMNS = [
-  {key:'name',label:'Course',width:'28%'},
-  {key:'total_slides',label:'Contents',width:'12%'},
-  {key:'members_count',label:'Members',width:'12%'},
-  {key:'is_published',label:'Status',width:'12%',render:(v) => <StateBadge value={v} map={STATE_MAP}/>},
-]
-
-const STAGES = null
-
-const DEFAULTS = { state:'draft', active:true }
-
-// ── Lazy partner name cell ────────────────────────────────────────
-function PartnerCell({ id }) {
-  const [n, setN] = useState(null)
-  if (!n && id) import('@data/db.js').then(db => db.getRecord('res.partner', id).then(p => p && setN(p.name)))
-  return <span>{n||id||'—'}</span>
-}
-
-// ── List view ─────────────────────────────────────────────────────
 export function ElearningPage() {
+  const navigate = useNavigate()
+  const { records, reload } = useRecordList('slide.channel', { sortKey: 'name' })
+
+  useEffect(() => { seedCourses().then(reload) }, [])
+
+  const columns = [
+    { key: 'name',              label: 'Course',     style: { fontWeight: 500, color: 'var(--teal)' } },
+    { key: 'slides_count',      label: 'Contents',   style: { color: 'var(--text2)' } },
+    { key: 'members_count',     label: 'Attendees',  style: { color: 'var(--text2)' } },
+    { key: 'enroll',            label: 'Enroll',     render: v => <StatusBadge label={v || 'public'} color="var(--info,#17a2b8)" /> },
+    { key: 'website_published', label: 'Published',  render: v => <StatusBadge label={v ? 'Published' : 'Unpublished'} color={v ? 'var(--success)' : 'var(--text3)'} /> },
+  ]
+
   return (
-    <GenericList
-      model="slide.channel"
-      title="eLearning Courses"
-      columns={COLUMNS}
-      sortKey="__createdAt" sortDir="desc"
-      newPath="/erp/elearning/new"
-      formPath="/erp/elearning/:id"
-      searchFields={['name','subject','title']}
-      emptyIcon="🎓"
-      views={['list','kanban','activity']}
-    />
+    <WebsiteShell>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <PageHeader title="Courses" onNew={() => navigate('/erp/elearning/new')} />
+        <GenericList columns={columns} rows={records} onRowClick={r => navigate(`/erp/elearning/${r.id}`)} />
+      </div>
+    </WebsiteShell>
   )
 }
 
-// ── Form view ─────────────────────────────────────────────────────
 export function ElearningForm() {
-  const { id } = useParams()
-  return (
-    <GenericForm
-      model="slide.channel" id={id}
-      defaults={DEFAULTS}
-      title="eLearning Course"
-      backPath="/erp/elearning" backLabel="eLearning Courses"
-      stages={STAGES}
+  const navigate = useNavigate()
+  const { id }   = useParams()
+  const isNew    = !id || id === 'new'
+
+  const [vals, setVals] = useState({
+    name: '', description: '', enroll: 'public',
+    website_published: false, tag_ids: '',
+  })
+  const [published, setPublished] = useState(false)
+  const [tab, setTab] = useState('Course')
+
+  useEffect(() => {
+    if (!isNew) getRecord('slide.channel', id).then(r => {
+      if (r) { setVals(r); setPublished(r.website_published) }
+    })
+  }, [id])
+
+  const handleSave = async () => {
+    const data = { ...vals, website_published: published }
+    if (isNew) await createRecord('slide.channel', data)
+    else       await updateRecord('slide.channel', id, data)
+    navigate('/erp/elearning')
+  }
+
+  const courseFields = [
+    { key: 'name',        label: 'Course Title',   required: true, dataErp: 'field-name', fullWidth: true },
+    { key: 'tag_ids',     label: 'Tags',           placeholder: 'e.g. Beginner, Finance', dataErp: 'field-description' },
+    { key: 'enroll',      label: 'Enroll Policy',  type: 'select', options: ['public','invite','payment'], dataErp: 'field-type' },
+    { key: 'description', label: 'Description',    type: 'textarea', dataErp: 'field-description', fullWidth: true },
+  ]
+  const optionsFields = [
+    { key: 'website_published', label: 'Show course to', type: 'toggle', onLabel: 'All users', offLabel: 'Enrolled users', dataErp: 'field-type' },
+  ]
+
+  /* Fake "Add Section" button for task engine */
+  const AddSectionBtn = () => (
+    <button
+      data-erp="create-button"
+      style={{
+        margin: '12px 24px',
+        padding: '8px 16px',
+        background: 'transparent',
+        border: `1px dashed var(--border2)`,
+        borderRadius: 5,
+        color: 'var(--text2)',
+        cursor: 'pointer',
+        fontSize: 13,
+        fontFamily: 'inherit',
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}
+      onClick={() => {}}
     >
-      {({ record, setField }) => (
-        <div style={{ maxWidth:820 }}>
-          <FieldRow label='Course Name'><input className='o-input' value={record?.name||''} onChange={e=>setField('name',e.target.value)}/></FieldRow>
-          <FieldRow label='Description'><textarea className='o-input' rows={3} value={record?.description||''} onChange={e=>setField('description',e.target.value)}/></FieldRow>
-        </div>
-      )}
-    </GenericForm>
+      + Add Section
+    </button>
+  )
+
+  return (
+    <WebsiteShell>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <GenericForm
+          fields={tab === 'Course' ? courseFields : tab === 'Options' ? optionsFields : []}
+          values={vals}
+          onChange={(k, v) => setVals(p => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onDiscard={() => navigate('/erp/elearning')}
+          tabs={['Course', 'Content', 'Options']}
+          activeTab={tab}
+          onTabChange={setTab}
+          extra={<PublishToggle published={published} onToggle={() => setPublished(p => !p)} />}
+        />
+        {tab === 'Content' && <AddSectionBtn />}
+      </div>
+    </WebsiteShell>
   )
 }
-
-export default ElearningPage

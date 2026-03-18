@@ -1,74 +1,140 @@
 /**
- * BlogPage.jsx — Blog Posts
- * Odoo 19.0 model: blog.post
- * Route base: /erp/blog
- * Sub-nav: ['Blog Posts', 'Reporting', 'Configuration']
+ * BlogPage.jsx — Blog module
+ * Lesson 39: Blog
+ * Selectors: app-website, create-button, field-description, field-name, new-button
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { GenericList, GenericForm, StateBadge, PriorityStars, FieldRow } from '../ModuleFactory.jsx'
-import ActionBar from '@shell/ActionBar.jsx'
+import WebsiteShell from '../website/WebsiteShell'
+import { PageHeader, GenericList, GenericForm, StatusBadge, PublishToggle } from '../website/websiteHelpers'
+import { useRecordList } from '@data/useRecord.js'
+import { createRecord, getRecord, updateRecord } from '@data/db.js'
 
-const STATE_MAP = {
-  'published':{label:'Published',color:'var(--success)',bg:'rgba(46,204,113,0.15)'},
-  'unpublished':{label:'Draft',color:'var(--text3)',bg:'var(--surface3)'},
+async function seedBlogs() {
+  const { listRecords } = await import('@data/db.js')
+  const [blogs, posts] = await Promise.all([
+    listRecords('blog.blog'),
+    listRecords('blog.post'),
+  ])
+  if (blogs.length === 0) {
+    const b = [
+      { name: 'Company News',  subtitle: 'Latest updates from our team' },
+      { name: 'Tech & Tips',   subtitle: 'Technical guides and how-tos' },
+    ]
+    for (const item of b) await createRecord('blog.blog', item)
+  }
+  if (posts.length === 0) {
+    const p = [
+      { name: 'Welcome to our blog!',       website_published: true,  visits: 143, blog_name: 'Company News' },
+      { name: 'How to use Odoo inventory',  website_published: true,  visits: 87,  blog_name: 'Tech & Tips' },
+      { name: 'Q1 2025 Updates',            website_published: false, visits: 0,   blog_name: 'Company News' },
+    ]
+    for (const item of p) await createRecord('blog.post', item)
+  }
 }
 
-const COLUMNS = [
-  {key:'name',label:'Title',width:'30%'},
-  {key:'blog_id',label:'Blog',width:'15%'},
-  {key:'website_published',label:'Status',width:'12%',render:(v) => <StateBadge value={v} map={STATE_MAP}/>},
-  {key:'post_date',label:'Date',width:'13%',render:(v) => v ? new Date(v).toLocaleDateString() : '—'},
-]
-
-const STAGES = null
-
-const DEFAULTS = { state:'draft', active:true }
-
-// ── Lazy partner name cell ────────────────────────────────────────
-function PartnerCell({ id }) {
-  const [n, setN] = useState(null)
-  if (!n && id) import('@data/db.js').then(db => db.getRecord('res.partner', id).then(p => p && setN(p.name)))
-  return <span>{n||id||'—'}</span>
-}
-
-// ── List view ─────────────────────────────────────────────────────
 export function BlogPage() {
-  return (
-    <GenericList
-      model="blog.post"
-      title="Blog Posts"
-      columns={COLUMNS}
-      sortKey="__createdAt" sortDir="desc"
-      newPath="/erp/blog/new"
-      formPath="/erp/blog/:id"
-      searchFields={['name','subject','title']}
-      emptyIcon="📝"
-      views={['list','kanban','activity']}
-    />
-  )
-}
+  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState('posts')
+  const { records: posts,  reload: reloadPosts }  = useRecordList('blog.post',  { sortKey: 'name' })
+  const { records: blogs,  reload: reloadBlogs }  = useRecordList('blog.blog',  { sortKey: 'name' })
 
-// ── Form view ─────────────────────────────────────────────────────
-export function BlogForm() {
-  const { id } = useParams()
+  useEffect(() => { seedBlogs().then(() => { reloadPosts(); reloadBlogs() }) }, [])
+
+  const postCols = [
+    { key: 'name',              label: 'Title',      style: { fontWeight: 500, color: 'var(--teal)' } },
+    { key: 'blog_name',         label: 'Blog',       style: { color: 'var(--text2)' } },
+    { key: 'visits',            label: 'Visits',     style: { color: 'var(--text2)' } },
+    { key: 'website_published', label: 'Published',  render: v => <StatusBadge label={v ? 'Published' : 'Unpublished'} color={v ? 'var(--success)' : 'var(--text3)'} /> },
+  ]
+  const blogCols = [
+    { key: 'name',     label: 'Blog Name', style: { fontWeight: 500, color: 'var(--teal)' } },
+    { key: 'subtitle', label: 'Subtitle',  style: { color: 'var(--text2)' } },
+  ]
+
   return (
-    <GenericForm
-      model="blog.post" id={id}
-      defaults={DEFAULTS}
-      title="Blog Post"
-      backPath="/erp/blog" backLabel="Blog Posts"
-      stages={STAGES}
-    >
-      {({ record, setField }) => (
-        <div style={{ maxWidth:820 }}>
-          <FieldRow label='Post Title'><input className='o-input' value={record?.name||''} onChange={e=>setField('name',e.target.value)}/></FieldRow>
-          <FieldRow label='Subtitle'><input className='o-input' value={record?.subtitle||''} onChange={e=>setField('subtitle',e.target.value)}/></FieldRow>
-          <FieldRow label='Tags'><input className='o-input' value={record?.tag_ids||''} onChange={e=>setField('tag_ids',e.target.value)}/></FieldRow>
+    <WebsiteShell>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <PageHeader
+          title="Blog"
+          onNew={() => navigate(activeTab === 'blogs' ? '/erp/blog/blog/new' : '/erp/blog/new')}
+          extra={
+            <button
+              data-erp="app-website"
+              style={{ padding: '5px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+              onClick={() => navigate('/erp/website')}
+            >🌐 Go to Website</button>
+          }
+        />
+
+        {/* Sub-tabs: Posts / Blogs */}
+        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', background: 'var(--surface)', padding: '0 20px', flexShrink: 0 }}>
+          {['posts', 'blogs'].map(t => (
+            <button key={t} onClick={() => setActiveTab(t)} style={{
+              padding: '8px 16px', background: 'transparent', border: 'none',
+              borderBottom: activeTab === t ? '2px solid var(--teal)' : '2px solid transparent',
+              color: activeTab === t ? 'var(--teal)' : 'var(--text2)',
+              fontSize: 13, fontWeight: activeTab === t ? 600 : 400,
+              cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize',
+            }}>{t}</button>
+          ))}
         </div>
-      )}
-    </GenericForm>
+
+        {activeTab === 'posts' && (
+          <GenericList columns={postCols} rows={posts} onRowClick={r => navigate(`/erp/blog/${r.id}`)} />
+        )}
+        {activeTab === 'blogs' && (
+          <GenericList columns={blogCols} rows={blogs} onRowClick={r => navigate(`/erp/blog/blog/${r.id}`)} />
+        )}
+      </div>
+    </WebsiteShell>
   )
 }
 
-export default BlogPage
+export function BlogForm() {
+  const navigate = useNavigate()
+  const { id }   = useParams()
+  const isNew    = !id || id === 'new'
+
+  const [vals, setVals] = useState({
+    name: '', blog_name: '', content: '', website_published: false,
+    website_meta_title: '', website_meta_description: '',
+  })
+  const [published, setPublished] = useState(false)
+
+  useEffect(() => {
+    if (!isNew) getRecord('blog.post', id).then(r => {
+      if (r) { setVals(r); setPublished(r.website_published) }
+    })
+  }, [id])
+
+  const handleSave = async () => {
+    const data = { ...vals, website_published: published }
+    if (isNew) await createRecord('blog.post', data)
+    else       await updateRecord('blog.post', id, data)
+    navigate('/erp/blog')
+  }
+
+  const fields = [
+    { key: 'name',                    label: 'Post Title',    required: true, dataErp: 'field-name', fullWidth: true },
+    { key: 'blog_name',               label: 'Blog',          placeholder: 'e.g. Company News' },
+    { key: 'website_meta_title',      label: 'SEO Title' },
+    { key: 'content',                 label: 'Content',       type: 'textarea', dataErp: 'field-description', fullWidth: true },
+    { key: 'website_meta_description',label: 'SEO Description', type: 'textarea', dataErp: 'field-description', fullWidth: true },
+  ]
+
+  return (
+    <WebsiteShell>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <GenericForm
+          fields={fields}
+          values={vals}
+          onChange={(k, v) => setVals(p => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onDiscard={() => navigate('/erp/blog')}
+          extra={<PublishToggle published={published} onToggle={() => setPublished(p => !p)} />}
+        />
+      </div>
+    </WebsiteShell>
+  )
+}

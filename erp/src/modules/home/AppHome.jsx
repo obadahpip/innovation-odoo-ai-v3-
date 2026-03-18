@@ -94,29 +94,6 @@ export default function AppHome() {
     }}>
 
       {/* Top-right icons only — matches Odoo 19 home (no app name, no menu) */}
-      <div style={{
-        position: 'fixed', top: 0, right: 0,
-        display: 'flex', alignItems: 'center', gap: 2,
-        padding: '6px 12px 6px 0',
-        zIndex: 100,
-      }}>
-        <NavIconBtn title="AI"><AiIcon /></NavIconBtn>
-        <NavIconBtn title="Discuss">
-          <div style={{ position:'relative' }}>
-            <ChatIcon />
-            <span style={{ position:'absolute', top:-6, right:-7, background:'var(--danger)', color:'#fff', fontSize:9, fontWeight:700, borderRadius:8, padding:'0 4px', lineHeight:'13px', minWidth:13, textAlign:'center' }}>4</span>
-          </div>
-        </NavIconBtn>
-        <NavIconBtn title="Activities"><ClockIcon /></NavIconBtn>
-        <NavIconBtn title="Debug" onClick={toggleDev}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={devMode?'var(--teal)':'currentColor'} strokeWidth="1.8">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-        </NavIconBtn>
-        <div style={{ width:1, height:18, background:'var(--border2)', margin:'0 6px' }}/>
-        <span style={{ fontSize:13, color:'var(--text2)', marginRight:6 }}>mta</span>
-        <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--purple)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#fff', cursor:'pointer' }}>O</div>
-      </div>
 
       {/* App grid — centered exactly like Odoo 19 */}
       <div style={{

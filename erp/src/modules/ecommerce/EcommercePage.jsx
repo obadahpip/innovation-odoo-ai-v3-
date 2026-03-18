@@ -1,75 +1,126 @@
 /**
- * EcommercePage.jsx — eCommerce Products
- * Odoo 19.0 model: product.template
- * Route base: /erp/ecommerce
- * Sub-nav: ['Products', 'Orders', 'eCommerce', 'Reporting', 'Configuration']
+ * EcommercePage.jsx — eCommerce module
+ * Lesson 35: eCommerce
+ * Selectors: app-website, create-button, field-amount, field-name, list-row, save-button
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { GenericList, GenericForm, StateBadge, PriorityStars, FieldRow } from '../ModuleFactory.jsx'
-import ActionBar from '@shell/ActionBar.jsx'
+import WebsiteShell from '../website/WebsiteShell'
+import { PageHeader, GenericList, GenericForm, StatusBadge, PublishToggle } from '../website/websiteHelpers'
+import { useRecordList } from '@data/useRecord.js'
+import { createRecord, getRecord, updateRecord } from '@data/db.js'
 
-const STATE_MAP = {
-  'published':{label:'Published',color:'var(--success)',bg:'rgba(46,204,113,0.15)'},
-  'unpublished':{label:'Unpublished',color:'var(--text3)',bg:'var(--surface3)'},
+async function seedProducts() {
+  const { listRecords } = await import('@data/db.js')
+  const existing = await listRecords('product.template')
+  if (existing.length > 0) return
+  const products = [
+    { name: 'Acoustic Bloc Screens',   list_price: 2950.00, qty_available: 48, is_published: true,  categ_id: 'All / Saleable', type: 'storable' },
+    { name: 'Bin Cushion Cover',        list_price: 45.50,   qty_available: 120, is_published: true, categ_id: 'All / Saleable', type: 'storable' },
+    { name: 'Corner Desk Right Sit',    list_price: 890.00,  qty_available: 15, is_published: true,  categ_id: 'All / Saleable', type: 'storable' },
+    { name: 'Design Chair Black/White', list_price: 247.00,  qty_available: 32, is_published: false, categ_id: 'All / Saleable', type: 'storable' },
+    { name: 'iPad Retina Display',      list_price: 2199.00, qty_available: 7,  is_published: true,  categ_id: 'All / Saleable', type: 'storable' },
+    { name: 'VOIP Phone',              list_price: 129.99,  qty_available: 43, is_published: true,  categ_id: 'All / Saleable', type: 'storable' },
+  ]
+  for (const p of products) await createRecord('product.template', p)
 }
 
-const COLUMNS = [
-  {key:'name',label:'Product',width:'28%'},
-  {key:'list_price',label:'Sales Price',width:'14%',render:(v) => v!=null ? `${Number(v).toFixed(3)} د.ا` : '—'},
-  {key:'standard_price',label:'Cost',width:'12%',render:(v) => v!=null ? `${Number(v).toFixed(3)} د.ا` : '—'},
-  {key:'qty_available',label:'On Hand',width:'10%'},
-  {key:'website_published',label:'Online',width:'12%',render:(v) => <StateBadge value={v} map={STATE_MAP}/>},
-]
-
-const STAGES = null
-
-const DEFAULTS = { state:'draft', active:true }
-
-// ── Lazy partner name cell ────────────────────────────────────────
-function PartnerCell({ id }) {
-  const [n, setN] = useState(null)
-  if (!n && id) import('@data/db.js').then(db => db.getRecord('res.partner', id).then(p => p && setN(p.name)))
-  return <span>{n||id||'—'}</span>
-}
-
-// ── List view ─────────────────────────────────────────────────────
 export function EcommercePage() {
+  const navigate = useNavigate()
+  const { records, reload } = useRecordList('product.template', { sortKey: 'name' })
+
+  useEffect(() => { seedProducts().then(reload) }, [])
+
+  const columns = [
+    { key: 'name',          label: 'Product',    style: { fontWeight: 500, color: 'var(--teal)' } },
+    { key: 'list_price',    label: 'Price',      render: v => v ? `$${Number(v).toFixed(2)}` : '—' },
+    { key: 'qty_available', label: 'On Hand',    style: { color: 'var(--text2)' } },
+    { key: 'type',          label: 'Type',       render: v => <StatusBadge label={v || 'storable'} color="var(--info,#17a2b8)" /> },
+    { key: 'is_published',  label: 'Published',  render: v => <StatusBadge label={v ? 'Yes' : 'No'} color={v ? 'var(--success)' : 'var(--text3)'} /> },
+  ]
+
   return (
-    <GenericList
-      model="product.template"
-      title="eCommerce Products"
-      columns={COLUMNS}
-      sortKey="__createdAt" sortDir="desc"
-      newPath="/erp/ecommerce/new"
-      formPath="/erp/ecommerce/:id"
-      searchFields={['name','subject','title']}
-      emptyIcon="🛒"
-      views={['list','kanban','activity']}
-    />
+    <WebsiteShell>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <PageHeader
+          title="Products"
+          onNew={() => navigate('/erp/ecommerce/new')}
+          extra={
+            <button
+              data-erp="app-website"
+              style={{ padding: '5px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+              onClick={() => navigate('/erp/website')}
+            >
+              🌐 Go to Website
+            </button>
+          }
+        />
+        <GenericList
+          columns={columns}
+          rows={records}
+          onRowClick={row => navigate(`/erp/ecommerce/${row.id}`)}
+        />
+      </div>
+    </WebsiteShell>
   )
 }
 
-// ── Form view ─────────────────────────────────────────────────────
 export function EcommerceForm() {
-  const { id } = useParams()
+  const navigate = useNavigate()
+  const { id }   = useParams()
+  const isNew    = !id || id === 'new'
+
+  const [vals, setVals] = useState({
+    name: '', list_price: '', standard_price: '', type: 'storable',
+    categ_id: '', description_sale: '', is_published: false,
+    website_published: false,
+  })
+  const [published, setPublished] = useState(false)
+  const [tab, setTab] = useState('General')
+
+  useEffect(() => {
+    if (!isNew) {
+      getRecord('product.template', id).then(r => {
+        if (r) { setVals(r); setPublished(r.is_published) }
+      })
+    }
+  }, [id])
+
+  const handleSave = async () => {
+    const data = { ...vals, is_published: published }
+    if (isNew) await createRecord('product.template', data)
+    else       await updateRecord('product.template', id, data)
+    navigate('/erp/ecommerce')
+  }
+
+  const generalFields = [
+    { key: 'name',           label: 'Product Name',  required: true, dataErp: 'field-name', fullWidth: true },
+    { key: 'type',           label: 'Product Type',  type: 'select', options: ['storable','consumable','service'], dataErp: 'field-type' },
+    { key: 'categ_id',       label: 'Category',      placeholder: 'All / Saleable' },
+    { key: 'list_price',     label: 'Sales Price',   type: 'number', placeholder: '0.00', dataErp: 'field-amount' },
+    { key: 'standard_price', label: 'Cost',          type: 'number', placeholder: '0.00', dataErp: 'field-amount' },
+  ]
+  const descFields = [
+    { key: 'description_sale', label: 'Sales Description', type: 'textarea', dataErp: 'field-description', fullWidth: true },
+  ]
+
   return (
-    <GenericForm
-      model="product.template" id={id}
-      defaults={DEFAULTS}
-      title="eCommerce Product"
-      backPath="/erp/ecommerce" backLabel="eCommerce Products"
-      stages={STAGES}
-    >
-      {({ record, setField }) => (
-        <div style={{ maxWidth:820 }}>
-          <FieldRow label='Product Name'><input className='o-input' value={record?.name||''} onChange={e=>setField('name',e.target.value)}/></FieldRow>
-          <FieldRow label='Sales Price'><input type='number' className='o-input' value={record?.list_price||0} onChange={e=>setField('list_price',parseFloat(e.target.value)||0)}/></FieldRow>
-          <FieldRow label='Cost'><input type='number' className='o-input' value={record?.standard_price||0} onChange={e=>setField('standard_price',parseFloat(e.target.value)||0)}/></FieldRow>
-        </div>
-      )}
-    </GenericForm>
+    <WebsiteShell>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <GenericForm
+          fields={tab === 'General' ? generalFields : tab === 'Sales' ? descFields : []}
+          values={vals}
+          onChange={(k, v) => setVals(p => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onDiscard={() => navigate('/erp/ecommerce')}
+          tabs={['General', 'Sales', 'Variants', 'eCommerce']}
+          activeTab={tab}
+          onTabChange={setTab}
+          extra={
+            <PublishToggle published={published} onToggle={() => setPublished(p => !p)} />
+          }
+        />
+      </div>
+    </WebsiteShell>
   )
 }
-
-export default EcommercePage

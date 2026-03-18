@@ -1,131 +1,152 @@
 /**
- * TimeOffPage.jsx — hr.leave / hr.leave.type
- * Odoo 19.0 fields: name, employee_id, holiday_status_id, date_from,
- *   date_to, number_of_days, state, holiday_type, notes, active
- * state: draft|confirm|refuse|validate1|validate|cancel
+ * TimeOffPage.jsx — Time Off module (full)
+ * Lesson 50: Time Off
+ * Selectors: app-leaves, field-name, field-type, list-row, new-button, save-button
  */
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { HRShell, PageHeader, GenericList, GenericForm, StatusBadge, StatusBarField, ConfirmButton, RefuseButton } from '../expenses/hrHelpers'
 import { useRecordList } from '@data/useRecord.js'
-import { createRecord } from '@data/db.js'
-import ActionBar from '@shell/ActionBar.jsx'
+import { createRecord, getRecord, updateRecord } from '@data/db.js'
 
-const STATE_MAP = {
-  draft:     { label:'To Submit',   color:'var(--text3)',   bg:'var(--surface3)' },
-  confirm:   { label:'To Approve',  color:'var(--warning)', bg:'rgba(240,173,78,0.15)' },
-  validate1: { label:'2nd Approval',color:'var(--info)',    bg:'rgba(52,152,219,0.15)' },
-  validate:  { label:'Approved',    color:'var(--success)', bg:'rgba(46,204,113,0.15)' },
-  refuse:    { label:'Refused',     color:'var(--danger)',  bg:'rgba(231,76,60,0.15)' },
-  cancel:    { label:'Cancelled',   color:'var(--text3)',   bg:'var(--surface3)' },
+const SIDEBAR = [
+  { label: 'MY TIME OFF', items: [
+    { label: 'My Time Off',          path: '/erp/time-off',                icon: '🏖' },
+    { label: 'My Allocation Requests', path: '/erp/time-off/allocations',  icon: '📋' },
+  ]},
+  { label: 'MANAGERS', items: [
+    { label: 'All Time Off',         path: '/erp/time-off/all',            icon: '📊' },
+    { label: 'All Allocations',      path: '/erp/time-off/all-allocations',icon: '📁' },
+  ]},
+  { label: 'REPORTING', items: [
+    { label: 'By Employee',          path: '/erp/time-off/reporting',      icon: '📈' },
+    { label: 'Analysis',             path: '/erp/time-off/analysis',       icon: '📉' },
+  ]},
+  { label: 'CONFIGURATION', items: [
+    { label: 'Leave Types',          path: '/erp/time-off/types',          icon: '⚙' },
+    { label: 'Settings',             path: '/erp/time-off/config',         icon: '⚙' },
+  ]},
+]
+
+async function seedTimeOff() {
+  const { listRecords } = await import('@data/db.js')
+  const [leaves, types] = await Promise.all([
+    listRecords('hr.leave'),
+    listRecords('hr.leave.type'),
+  ])
+  if (types.length === 0) {
+    for (const t of [
+      { name: 'Annual Leave',      leave_validation_type: 'manager', allocation_type: 'fixed', max_leaves: 20 },
+      { name: 'Sick Leave',        leave_validation_type: 'no_validation', allocation_type: 'fixed', max_leaves: 10 },
+      { name: 'Unpaid Leave',      leave_validation_type: 'hr', allocation_type: 'no', max_leaves: 0 },
+      { name: 'Compensatory Off',  leave_validation_type: 'manager', allocation_type: 'fixed', max_leaves: 5 },
+    ]) await createRecord('hr.leave.type', t)
+  }
+  if (leaves.length === 0) {
+    for (const l of [
+      { name: 'Annual Leave',      employee_id: 'Mitchell Admin',  date_from: '2025-03-10', date_to: '2025-03-14', state: 'validate', number_of_days: 5 },
+      { name: 'Sick Leave',        employee_id: 'Marc Demo',       date_from: '2025-03-03', date_to: '2025-03-04', state: 'validate', number_of_days: 2 },
+      { name: 'Annual Leave',      employee_id: 'Brandon Freeman', date_from: '2025-04-01', date_to: '2025-04-05', state: 'confirm',  number_of_days: 5 },
+      { name: 'Compensatory Off',  employee_id: 'Abigail Peterson',date_from: '2025-03-21', date_to: '2025-03-21', state: 'draft',    number_of_days: 1 },
+    ]) await createRecord('hr.leave', l)
+  }
 }
 
-export default function TimeOffPage() {
+/* ── Time Off List ──────────────────────────────────────────────── */
+export function TimeOffPage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState('overview')
-  const [search, setSearch] = useState('')
+  const { records, reload } = useRecordList('hr.leave', { sortKey: 'date_from' })
+  useEffect(() => { seedTimeOff().then(reload) }, [])
 
-  const { records: leaves } = useRecordList('hr.leave', { sortKey:'date_from', sortDir:'desc' })
-  const { records: types  } = useRecordList('hr.leave.type', {})
-  const { records: emps   } = useRecordList('hr.employee', {})
+  const STATE_COLOR = { draft: 'var(--text3)', confirm: 'var(--warning)', validate: 'var(--success)', refuse: 'var(--danger)' }
+  const STATE_LABEL = { draft: 'To Submit', confirm: 'To Approve', validate: 'Approved', refuse: 'Refused' }
 
-  const getTypeName = id => types.find(t => t.id === id)?.name || id || '—'
-  const getEmpName  = id => emps.find(e => e.id === id)?.name  || id || '—'
-
-  const filtered = leaves.filter(l => !search || getEmpName(l.employee_id).toLowerCase().includes(search.toLowerCase()))
+  const columns = [
+    { key: 'name',           label: 'Leave Type',  style: { fontWeight: 500, color: 'var(--teal)' } },
+    { key: 'employee_id',    label: 'Employee',    style: { color: 'var(--text2)' } },
+    { key: 'date_from',      label: 'From',        style: { color: 'var(--text2)' } },
+    { key: 'date_to',        label: 'To',          style: { color: 'var(--text2)' } },
+    { key: 'number_of_days', label: 'Days',        style: { color: 'var(--text2)' } },
+    { key: 'state',          label: 'Status',      render: v => <StatusBadge label={STATE_LABEL[v] || v} color={STATE_COLOR[v] || 'var(--text3)'} /> },
+  ]
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', flex:1, overflow:'hidden' }}>
-      {/* Sub-nav */}
-      <div style={{ height:40, background:'var(--surface)', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', padding:'0 16px', gap:0, flexShrink:0 }}>
-        {[['overview','Overview'],['my','My Time Off'],['all','All Time Off'],['allocation','Allocations']].map(([k,label]) => (
-          <button key={k} onClick={() => setTab(k)} style={{
-            padding:'0 16px', height:'100%', background:'none', border:'none', fontFamily:'inherit',
-            fontSize:13, cursor:'pointer',
-            color: tab===k ? 'var(--text)' : 'var(--text2)',
-            borderBottom: tab===k ? '2px solid var(--teal)' : '2px solid transparent',
-            fontWeight: tab===k ? 600 : 400,
-          }}>{label}</button>
-        ))}
+    <HRShell sidebarSections={SIDEBAR}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <PageHeader
+          title="Time Off"
+          onNew={() => navigate('/erp/time-off/new')}
+          extra={
+            <button data-erp="app-leaves"
+              style={{ padding: '5px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              🏖 Overview
+            </button>
+          }
+        />
+        <GenericList columns={columns} rows={records} onRowClick={r => navigate(`/erp/time-off/${r.id}`)} />
       </div>
+    </HRShell>
+  )
+}
 
-      <ActionBar
-        showNew onNew={async () => {
-          await createRecord('hr.leave', { name:'New Time Off', employee_id:'emp-emma', holiday_status_id:'lt-annual', date_from:new Date().toISOString(), date_to:new Date().toISOString(), number_of_days:1, state:'draft', active:true })
-        }}
-        title="Time Off" showGear
-        searchValue={search} onSearchChange={setSearch}
-        currentPage={1} totalCount={filtered.length} pageSize={80}
-        views={['list','kanban','activity','calendar','gantt']} activeView="list"
-      />
+/* ── Time Off Form ──────────────────────────────────────────────── */
+export function TimeOffForm() {
+  const navigate = useNavigate()
+  const { id }   = useParams()
+  const isNew    = !id || id === 'new'
 
-      {/* Overview: allocation summary per type */}
-      {tab === 'overview' && (
-        <div style={{ flex:1, overflowY:'auto', padding:24 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:16 }}>
-            {types.map(type => (
-              <div key={type.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'16px 20px' }}>
-                <div style={{ fontSize:14, fontWeight:700, color:'var(--text)', marginBottom:8 }}>{type.name}</div>
-                <div style={{ display:'flex', gap:16 }}>
-                  <div style={{ textAlign:'center' }}>
-                    <div style={{ fontSize:20, fontWeight:700, color:'var(--teal)' }}>{type.allocation_type === 'no' ? '∞' : '20'}</div>
-                    <div style={{ fontSize:11, color:'var(--text3)' }}>Available</div>
-                  </div>
-                  <div style={{ textAlign:'center' }}>
-                    <div style={{ fontSize:20, fontWeight:700, color:'var(--text)' }}>
-                      {leaves.filter(l => l.holiday_status_id === type.id && l.state === 'validate').reduce((s,l)=>s+(l.number_of_days||0),0)}
-                    </div>
-                    <div style={{ fontSize:11, color:'var(--text3)' }}>Approved</div>
-                  </div>
-                </div>
-                <button style={{ marginTop:12, width:'100%', padding:'5px 0', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:4, cursor:'pointer', color:'var(--text2)', fontSize:12, fontFamily:'inherit' }}>
-                  New Allocation
-                </button>
-              </div>
-            ))}
+  const [vals, setVals]   = useState({ name: 'Annual Leave', employee_id: 'Mitchell Admin', date_from: '', date_to: '', description: '' })
+  const [status, setStatus] = useState('To Submit')
+  const [types, setTypes]   = useState([])
+
+  useEffect(() => {
+    import('@data/db.js').then(db => db.listRecords('hr.leave.type').then(setTypes))
+    if (!isNew) getRecord('hr.leave', id).then(r => {
+      if (r) {
+        setVals(r)
+        const map = { draft: 'To Submit', confirm: 'To Approve', validate: 'Approved', refuse: 'Refused' }
+        setStatus(map[r.state] || 'To Submit')
+      }
+    })
+  }, [id])
+
+  const handleSave = async () => {
+    const stateMap = { 'To Submit': 'draft', 'To Approve': 'confirm', 'Approved': 'validate', 'Refused': 'refuse' }
+    const data = { ...vals, state: stateMap[status] || 'draft' }
+    if (isNew) await createRecord('hr.leave', data)
+    else       await updateRecord('hr.leave', id, data)
+    navigate('/erp/time-off')
+  }
+
+  const handleApprove = async () => { setStatus('Approved'); await handleSave() }
+  const handleRefuse  = async () => { setStatus('Refused');  await handleSave() }
+
+  const fields = [
+    { key: 'name',        label: 'Leave Type',    type: 'select', dataErp: 'field-type',
+      options: types.map(t => t.name) },
+    { key: 'employee_id', label: 'Employee',      dataErp: 'field-name' },
+    { key: 'date_from',   label: 'From',          type: 'date', dataErp: 'field-date' },
+    { key: 'date_to',     label: 'To',            type: 'date', dataErp: 'field-date' },
+    { key: 'description', label: 'Reason',        type: 'textarea', dataErp: 'field-description', fullWidth: true },
+  ]
+
+  return (
+    <HRShell sidebarSections={SIDEBAR}>
+      <StatusBarField stages={['To Submit', 'To Approve', 'Approved']} current={status} onChange={setStatus} />
+      <GenericForm
+        fields={fields} values={vals}
+        onChange={(k, v) => setVals(p => ({ ...p, [k]: v }))}
+        onSave={handleSave}
+        onDiscard={() => navigate('/erp/time-off')}
+        extra={
+          <div style={{ display: 'flex', gap: 6 }}>
+            {status === 'To Submit' && <ConfirmButton label="Confirm" onClick={() => setStatus('To Approve')} />}
+            {status === 'To Approve' && <ConfirmButton label="Approve" onClick={handleApprove} />}
+            {status === 'To Approve' && <RefuseButton label="Refuse" onClick={handleRefuse} />}
           </div>
-        </div>
-      )}
-
-      {/* All time off list */}
-      {(tab === 'my' || tab === 'all') && (
-        <div style={{ flex:1, overflow:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead style={{ position:'sticky', top:0, background:'var(--bg)', zIndex:2 }}>
-              <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                <th style={{ width:40, padding:'8px 12px' }}><div style={{ width:15, height:15, borderRadius:3, border:'1.5px solid var(--border2)' }}/></th>
-                {['Employee','Time Off Type','Date From','Date To','Days','Status'].map(h=>(
-                  <th key={h} style={{ padding:'8px 10px', fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.4px', textAlign:'left', borderBottom:'1px solid var(--border)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(l => {
-                const badge = STATE_MAP[l.state] || STATE_MAP.draft
-                return (
-                  <tr key={l.id} style={{ borderBottom:'1px solid var(--border)', cursor:'pointer' }}
-                    onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'}
-                    onMouseLeave={e=>e.currentTarget.style.background=''}>
-                    <td style={{ padding:'0 12px' }}><div style={{ width:15, height:15, borderRadius:3, border:'1.5px solid var(--border2)' }}/></td>
-                    <td style={{ padding:'8px 10px', fontSize:13, color:'var(--text)', fontWeight:500 }}>{getEmpName(l.employee_id)}</td>
-                    <td style={{ padding:'8px 10px', fontSize:13, color:'var(--text2)' }}>{getTypeName(l.holiday_status_id)}</td>
-                    <td style={{ padding:'8px 10px', fontSize:13, color:'var(--text2)' }}>{l.date_from ? new Date(l.date_from).toLocaleDateString() : '—'}</td>
-                    <td style={{ padding:'8px 10px', fontSize:13, color:'var(--text2)' }}>{l.date_to ? new Date(l.date_to).toLocaleDateString() : '—'}</td>
-                    <td style={{ padding:'8px 10px', fontSize:13, fontWeight:500 }}>{l.number_of_days || '—'}</td>
-                    <td style={{ padding:'8px 10px' }}>
-                      <span style={{ display:'inline-flex', padding:'2px 8px', borderRadius:12, fontSize:11, fontWeight:600, background:badge.bg, color:badge.color }}>
-                        {badge.label}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="empty-state"><div style={{fontSize:40,opacity:0.2}}>🌴</div><h3>No time off requests</h3></div>
-          )}
-        </div>
-      )}
-    </div>
+        }
+      />
+    </HRShell>
   )
 }

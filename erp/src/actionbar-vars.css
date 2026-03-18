@@ -1,0 +1,14 @@
+/* ── Append these lines inside your :root { } block in index.css ──
+   ActionBar uses these two variables — they were missing            */
+
+/* Paste inside :root { } in index.css: */
+/*
+  --actionbar-h:   48px;
+  --z-actionbar:   10;
+*/
+
+/* ── OR just paste this entire block anywhere in index.css ──────── */
+:root {
+  --actionbar-h:  48px;
+  --z-actionbar:  10;
+}

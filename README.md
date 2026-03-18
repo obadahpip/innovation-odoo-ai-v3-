@@ -1,91 +1,82 @@
-# Phase 7 — Email Notifications
+# Batch 8 — Task Engine
 
-Backend only — no frontend changes, no new packages, no migration needed.
+## Files
 
----
-
-## Files included
-
-| File in this zip                                                        | Action       | Replace / add in project                                                  |
-|-------------------------------------------------------------------------|--------------|---------------------------------------------------------------------------|
-| `backend/accounts/emails.py`                                            | Replace      | `backend/accounts/emails.py`                                              |
-| `backend/progress/views.py`                                             | Replace      | `backend/progress/views.py`                                               |
-| `backend/progress/management/__init__.py`                               | **New file** | `backend/progress/management/__init__.py`                                 |
-| `backend/progress/management/commands/__init__.py`                      | **New file** | `backend/progress/management/commands/__init__.py`                        |
-| `backend/progress/management/commands/send_weekly_digest.py`            | **New file** | `backend/progress/management/commands/send_weekly_digest.py`              |
-
----
-
-## What changed
-
-### accounts/emails.py — full rewrite
-All emails now share a consistent branded HTML template (purple gradient header, white card, footer).
-Functions added / updated:
-
-| Function                    | Trigger                              | Status  |
-|-----------------------------|--------------------------------------|---------|
-| `send_otp_email`            | Registration / password reset        | Updated (styled) |
-| `send_welcome_email`        | After OTP verification               | Updated (styled) |
-| `send_section_complete_email` | When user finishes all lessons in a section | **New** |
-| `send_weekly_digest_email`  | Called by management command         | **New** |
-| `send_certificate_email`    | When certificate is generated        | **New** |
-| `send_payment_*`            | Legacy payment flows                 | Updated (styled, kept) |
-
-### progress/views.py — two additions
-
-**Section completion email** (`ProgressUpdateView._check_section_complete`):
-- Called every time a lesson is marked complete
-- Checks if all lessons in that section are now done
-- Uses Django cache to prevent duplicate emails (30-day TTL per user+section)
-- Never crashes the API if email fails (`try/except` wrapped)
-
-**Certificate email** (`CertificateView`):
-- Sends on first certificate generation only (`created=True`)
-- Includes certificate ID and issue date
-- Links user to `/certificate` page to download PDF
-
-### Weekly digest management command
-
-Run manually or schedule it:
-
-```bash
-# Test without sending
-python manage.py send_weekly_digest --dry-run
-
-# Send to all verified users
-python manage.py send_weekly_digest
-
-# Send to a single user (for testing)
-python manage.py send_weekly_digest --email you@example.com
 ```
+erp/src/
+  engine/
+    allSteps.json               ← 799 steps for 81 lessons (data file)
+    taskRoutes.js               ← screen_target → route mapping
+    useTaskEngine.js            ← Zustand store, lesson state machine
+    taskVerifier.js             ← DOM event watcher (auto-advances steps)
+    StepHighlighter.jsx         ← spotlight ring around target element
+    TaskOverlay.jsx             ← floating HUD with instruction + controls
+    TaskEngineProvider.jsx      ← wrapper that connects all pieces
+    LessonSelector.jsx          ← lesson library UI (all 81 lessons)
+    AppHomeLessonWidget.jsx     ← banner widget for AppHome
 
-**Schedule on Windows (Task Scheduler):**
-- Program: `python`
-- Arguments: `manage.py send_weekly_digest`
-- Start in: `C:\path\to\backend`
-- Trigger: Weekly, every Monday at 9:00 AM
-
-**Schedule on Linux/Mac (cron):**
-```
-0 9 * * 1 cd /path/to/backend && python manage.py send_weekly_digest >> /var/log/digest.log 2>&1
+  App.jsx                       ← REPLACE (wraps with TaskEngineProvider,
+                                   adds /erp/lessons route)
 ```
 
 ---
 
-## No migration needed
+## Step 1 — Copy engine folder
+Copy `erp/src/engine/` into your project.
 
-No new models — just new email functions and a management command.
+## Step 2 — Replace App.jsx
+Replace `erp/src/App.jsx` with the one in this zip.
+
+## Step 3 — Add Lesson Widget to AppHome (optional but recommended)
+In `erp/src/modules/home/AppHome.jsx`, add near the top of the JSX:
+
+```jsx
+import AppHomeLessonWidget from '../../engine/AppHomeLessonWidget.jsx'
+
+// Inside the return, before the module tile grid:
+<AppHomeLessonWidget />
+```
+
+## Step 4 — Add Lessons link to TopNavbar (optional)
+In `erp/src/shell/TopNavbar.jsx`, in the user menu items array, add:
+```js
+{ icon: '📋', label: 'Lesson Library', action: () => navigate('/erp/lessons') },
+```
 
 ---
 
-## Quick checklist
+## How it works
 
-- [ ] `accounts/emails.py` replaced
-- [ ] `progress/views.py` replaced
-- [ ] `progress/management/` folder created with both `__init__.py` files
-- [ ] `send_weekly_digest.py` added
-- [ ] Test: `python manage.py send_weekly_digest --dry-run` prints users without error
-- [ ] Test: `python manage.py send_weekly_digest --email your@email.com` sends one email
-- [ ] Complete a lesson in a full section → section complete email arrives
-- [ ] Generate certificate at 100% → certificate email arrives
-- [ ] `.env` has valid `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
+### Starting a lesson
+```js
+import { useTaskEngine } from '../engine/useTaskEngine.js'
+const { startLesson } = useTaskEngine()
+
+// Start lesson 1 (Activities)
+startLesson(1)
+```
+
+### The engine loop
+1. `startLesson(id)` → loads lesson, navigates to first step screen
+2. `TaskEngineProvider` calls `watchStep(step, completeStep)` on every step change
+3. `taskVerifier` listens for matching DOM events:
+   - `navigate` → auto-advances after 400ms
+   - `click` → advances when `[data-erp="<selector>"]` is clicked
+   - `type` → advances when `[data-erp="<selector>"]` receives input
+   - `observe` → auto-advances after 1800ms
+4. `completeStep()` → increments step index, highlights next selector
+5. `StepHighlighter` renders a spotlight ring via `[data-erp]` query
+6. `TaskOverlay` shows instruction text, progress bar, Skip/Stop buttons
+
+### Manual advance
+Users can always click "Mark Done →" in the TaskOverlay to manually advance.
+
+### data-erp attributes
+All module files from batches 1–7 already have `data-erp` attributes on the correct elements. The verifier uses `document.querySelector('[data-erp="<selector>"]')` to find them.
+
+---
+
+## Lesson Library route
+Navigate to `/erp/lessons` to see all 81 lessons searchable and grouped by section.
+
+## All 81 lessons are now functional.

@@ -1,242 +1,439 @@
-import { useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import useAppStore from '@store/appStore.js'
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { MODULE_MAP } from '../data/moduleConfig';
+import AppSwitcher from './AppSwitcher';
 
-export default function TopNavbar({ appId, appName, menuItems=[], activeMenu, onMenuClick, openDropdown, dropdowns={}, onDropdownNavigate }) {
-  const navigate  = useNavigate()
-  const devMode   = useAppStore(s => s.developerMode)
-  const toggleDev = useAppStore(s => s.toggleDeveloperMode)
+const URL_TO_MODULE = {
+  'home':'home','crm':'crm','sales':'sales','contacts':'contacts',
+  'invoicing':'invoicing','employees':'employees','project':'project',
+  'settings':'settings','inventory':'inventory','time-off':'leave_requests',
+  'payroll':'payroll','recruitment':'recruitment','website':'website_builder',
+  'manufacturing':'manufacturing','purchase':'purchase','helpdesk':'helpdesk',
+  'email-marketing':'email_marketing','discuss':'discuss','calendar':'calendar',
+  'expenses':'expenses','fleet':'fleet','events':'events',
+  'maintenance':'maintenance','planning':'planning','surveys':'surveys',
+  'rental':'rental','appointments':'appointments','data-cleaning':'data_cleaning',
+  'attendances':'attendances','pos':'point_of_sale','subscriptions':'subscriptions',
+};
 
+/* ── Icons ──────────────────────────────────────────────────────── */
+const AIIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2L13.5 8.5L20 7L15.5 12L20 17L13.5 15.5L12 22L10.5 15.5L4 17L8.5 12L4 7L10.5 8.5Z"
+      stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+  </svg>
+);
+const MessageIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+      stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
+  </svg>
+);
+const ClockIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7"/>
+    <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const XIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+const WaffleIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
+    <rect x="1"    y="1"    width="6.5" height="6.5" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+    <rect x="10.5" y="1"    width="6.5" height="6.5" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+    <rect x="1"    y="10.5" width="6.5" height="6.5" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+    <rect x="10.5" y="10.5" width="6.5" height="6.5" rx="1.5" fill="rgba(255,255,255,0.85)"/>
+  </svg>
+);
+
+/* ── Nav icon button ────────────────────────────────────────────── */
+function NavBtn({ children, onClick, title, active, badge }) {
+  const [hov, setHov] = useState(false);
   return (
-    <nav style={{
-      height: 44,
-      background: 'var(--bg)',
-      borderBottom: '1px solid var(--border)',
-      display: 'flex',
-      alignItems: 'center',
-      padding: '0 0 0 8px',
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-      flexShrink: 0,
-      // Critical: NO overflow:hidden — dropdowns must escape the navbar
-    }}>
-
-      {/* Grid home icon */}
-      <button
-        onClick={() => navigate('/erp/home')}
-        style={{ width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:4, border:'none', background:'none', cursor:'pointer', color:'var(--text2)', flexShrink:0 }}
-        onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'}
-        onMouseLeave={e=>e.currentTarget.style.background='none'}>
-        <GridIcon />
-      </button>
-
-      {/* App name */}
-      {appName && (
-        <span style={{ fontWeight:600, fontSize:14, color:'var(--text)', marginRight:8, flexShrink:0 }}>
-          {appName}
-        </span>
+    <button onClick={onClick} title={title}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: 'relative', width: 34, height: 34, borderRadius: 5,
+        background: (active || hov) ? 'rgba(0,0,0,0.22)' : 'transparent',
+        border: 'none', color: 'rgba(255,255,255,0.88)',
+        cursor: 'pointer', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', flexShrink: 0, transition: 'background .1s',
+      }}>
+      {children}
+      {badge > 0 && (
+        <span style={{
+          position: 'absolute', top: 2, right: 2, minWidth: 14, height: 14,
+          borderRadius: 7, background: '#e74c3c', color: '#fff',
+          fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', padding: '0 3px',
+          border: '1.5px solid #714b67', lineHeight: 1,
+        }}>{badge}</span>
       )}
-
-      {/* Menu items — NO overflow:hidden, dropdowns escape naturally */}
-      <div style={{ display:'flex', alignItems:'stretch', height:'100%', flex:1 }}>
-        {menuItems.map(item => (
-          <NavMenuItem
-            key={item}
-            item={item}
-            isActive={item === activeMenu}
-            hasDropdown={!!dropdowns[item]}
-            isOpen={openDropdown === item}
-            dropdownItems={dropdowns[item]}
-            onMenuClick={onMenuClick}
-            onDropdownNavigate={onDropdownNavigate}
-          />
-        ))}
-      </div>
-
-      {/* Right side icons */}
-      <div style={{ display:'flex', alignItems:'center', gap:2, paddingRight:10, flexShrink:0 }}>
-        <NavIconBtn title="AI"><AiIcon /></NavIconBtn>
-        <NavIconBtn title="Discuss"><ChatBadge /></NavIconBtn>
-        <NavIconBtn title="Activities"><ClockIcon /></NavIconBtn>
-        <NavIconBtn title="Debug" onClick={toggleDev}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={devMode?'var(--teal)':'currentColor'} strokeWidth="1.8">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-        </NavIconBtn>
-        <div style={{ width:1, height:18, background:'var(--border2)', margin:'0 6px' }} />
-        <span style={{ fontSize:13, color:'var(--text2)', marginRight:6 }}>mta</span>
-        <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--purple)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#fff', cursor:'pointer' }}>O</div>
-      </div>
-    </nav>
-  )
+    </button>
+  );
 }
 
-/* ── Single menu item + its dropdown ────────────────────────────── */
-function NavMenuItem({ item, isActive, hasDropdown, isOpen, dropdownItems, onMenuClick, onDropdownNavigate }) {
-  const btnRef = useRef(null)
+/* ── Individual menu item — self-contained with fixed dropdown ─── */
+function NavMenuItem({ item, navbarHeight }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ left: 0, top: 0 });
+  const btnRef = useRef(null);
+  const dropRef = useRef(null);
+  const hasCh = !!(item.children?.length);
 
-  return (
-    <div style={{ position:'relative', height:'100%', display:'flex', alignItems:'stretch' }}>
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function h(e) {
+      if (
+        btnRef.current  && !btnRef.current.contains(e.target) &&
+        dropRef.current && !dropRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
 
-      {/* Tab button */}
-      <button
-        ref={btnRef}
-        onClick={e => { e.stopPropagation(); onMenuClick?.(item) }}
-        style={{
-          height:'100%',
-          padding:'0 13px',
-          background: isOpen ? 'var(--surface2)' : 'none',
-          border:'none',
-          borderBottom: isActive ? '2px solid var(--teal)' : '2px solid transparent',
-          borderTop: '2px solid transparent',
-          color: isActive ? 'var(--text)' : 'var(--text2)',
-          fontSize: 13,
-          fontWeight: isActive ? 600 : 400,
-          cursor:'pointer',
-          whiteSpace:'nowrap',
-          fontFamily:'inherit',
-          display:'flex',
-          alignItems:'center',
-          gap: 4,
-          transition:'color var(--t), background var(--t)',
-        }}
-        onMouseEnter={e => {
-          if (!isActive) e.currentTarget.style.color = 'var(--text)'
-          if (!isOpen)  e.currentTarget.style.background = 'var(--surface2)'
-        }}
-        onMouseLeave={e => {
-          if (!isActive) e.currentTarget.style.color = 'var(--text2)'
-          if (!isOpen)  e.currentTarget.style.background = 'none'
-        }}
-      >
-        {item}
-        {hasDropdown && <span style={{ fontSize:8, opacity:0.55, marginTop:1 }}>▼</span>}
-      </button>
+  // Close on route change
+  const location = useLocation();
+  useEffect(() => { setOpen(false); }, [location.pathname]);
 
-      {/* Dropdown — positioned absolute below the button, zIndex above everything */}
-      {isOpen && hasDropdown && dropdownItems && (
-        <DropdownPanel
-          items={dropdownItems}
-          onNavigate={onDropdownNavigate}
-        />
-      )}
-    </div>
-  )
-}
+  function handleClick(e) {
+    e.stopPropagation();
+    if (item.route) {
+      navigate(item.route);
+    } else if (hasCh) {
+      // Calculate position for fixed dropdown
+      const rect = btnRef.current.getBoundingClientRect();
+      setDropPos({ left: rect.left, top: rect.bottom });
+      setOpen(o => !o);
+    }
+  }
 
-/* ── Dropdown panel ─────────────────────────────────────────────── */
-function DropdownPanel({ items, onNavigate }) {
-  // Separate ungrouped items from grouped
-  const topLevel = items.filter(i => !i.group)
-  const groups   = {}
-  for (const item of items.filter(i => i.group)) {
-    if (!groups[item.group]) groups[item.group] = []
-    groups[item.group].push(item)
+  function handleChildClick(e, route) {
+    e.stopPropagation();
+    navigate(route);
+    setOpen(false);
   }
 
   return (
-    <div
-      onClick={e => e.stopPropagation()}
-      style={{
-        position: 'absolute',
-        top: '100%',        // directly below the navbar tab
-        left: 0,
-        minWidth: 210,
-        background: 'var(--surface)',
-        border: '1px solid var(--border2)',
-        borderRadius: '0 0 6px 6px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.55)',
-        zIndex: 999,        // very high to be above everything
-        paddingTop: 4,
-        paddingBottom: 4,
-      }}>
+    <div style={{ position: 'relative', height: '100%', flexShrink: 0 }}>
+      <button
+        ref={btnRef}
+        onClick={handleClick}
+        style={{
+          height: '100%',
+          padding: '0 14px',
+          background: open ? 'rgba(0,0,0,0.22)' : 'transparent',
+          border: 'none',
+          borderBottom: open
+            ? '2px solid rgba(255,255,255,0.8)'
+            : '2px solid transparent',
+          color: 'rgba(255,255,255,0.92)',
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          whiteSpace: 'nowrap',
+          fontFamily: 'inherit',
+          transition: 'background .1s',
+        }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(0,0,0,0.14)'; }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent'; }}
+      >
+        {item.label}
+        {hasCh && (
+          <svg width="10" height="10" viewBox="0 0 10 10"
+            style={{
+              opacity: open ? 0.9 : 0.5,
+              transition: 'transform .15s',
+              transform: open ? 'rotate(180deg)' : 'none',
+            }}>
+            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor"
+              strokeWidth="1.6" strokeLinecap="round" fill="none"/>
+          </svg>
+        )}
+      </button>
 
-      {/* Ungrouped top-level items */}
-      {topLevel.map(item => (
-        <DropItem key={item.label} item={item} onNavigate={onNavigate} />
-      ))}
-
-      {/* Grouped items with section headers */}
-      {Object.entries(groups).map(([groupName, groupItems], gi) => (
-        <div key={groupName}>
-          <div style={{
-            padding: '7px 14px 3px',
-            fontSize: 11,
-            fontWeight: 700,
-            color: 'var(--text3)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            borderTop: (topLevel.length > 0 || gi > 0) ? '1px solid var(--border)' : 'none',
-            marginTop: 2,
-          }}>
-            {groupName}
-          </div>
-          {groupItems.map(item => (
-            <DropItem key={item.label} item={item} onNavigate={onNavigate} indent />
+      {/* ── Dropdown — position:fixed so it escapes all overflow:hidden ancestors ── */}
+      {hasCh && open && (
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed',
+            top: dropPos.top,
+            left: dropPos.left,
+            minWidth: 220,
+            background: '#1e1f2e',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '0 4px 4px 4px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            zIndex: 9999,   /* above everything */
+          }}
+        >
+          {item.children.map((child, ci) => (
+            <button
+              key={ci}
+              onClick={e => handleChildClick(e, child.route)}
+              style={{
+                width: '100%',
+                padding: '9px 16px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: ci < item.children.length - 1
+                  ? '1px solid rgba(255,255,255,0.06)'
+                  : 'none',
+                textAlign: 'left',
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.85)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                transition: 'background .08s',
+                display: 'block',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {child.label}
+            </button>
           ))}
         </div>
-      ))}
+      )}
     </div>
-  )
+  );
 }
 
-function DropItem({ item, onNavigate, indent }) {
-  return (
-    <button
-      onClick={() => onNavigate?.(item.path)}
-      style={{
-        width: '100%',
-        padding: indent ? '7px 14px 7px 22px' : '7px 14px',
-        background: 'none',
-        border: 'none',
-        color: 'var(--text)',
-        fontSize: 13,
-        textAlign: 'left',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        display: 'block',
-      }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'none'}
-    >
-      {item.label}
-    </button>
-  )
-}
+/* ── Main TopNavbar ─────────────────────────────────────────────── */
+export default function TopNavbar({
+  userName  = 'Administrator',
+  userEmail = 'admin@company.com',
+}) {
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
-/* ── Icon helpers ────────────────────────────────────────────────── */
-function NavIconBtn({ children, title, onClick }) {
-  return (
-    <button title={title} onClick={onClick} style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:4, color:'var(--text2)', cursor:'pointer' }}
-      onMouseEnter={e=>{e.currentTarget.style.background='var(--surface2)';e.currentTarget.style.color='var(--text)'}}
-      onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='var(--text2)'}}>
-      {children}
-    </button>
-  )
-}
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [msgOpen,      setMsgOpen]      = useState(false);
 
-function GridIcon() {
+  const userRef = useRef(null);
+  const msgRef  = useRef(null);
+  const NAVBAR_H = 46;
+
+  // Derive active module + its menu from moduleConfig
+  const seg      = location.pathname.split('/').filter(Boolean)[1] || 'home';
+  const mod      = MODULE_MAP[URL_TO_MODULE[seg] || seg];
+  const menuItems = mod?.menu || [];
+
+  // Close user/msg menus on route change
+  useEffect(() => {
+    setUserMenuOpen(false);
+    setMsgOpen(false);
+  }, [location.pathname]);
+
+  // Close user/msg menus on outside click
+  useEffect(() => {
+    function h(e) {
+      if (userRef.current && !userRef.current.contains(e.target)) setUserMenuOpen(false);
+      if (msgRef.current  && !msgRef.current.contains(e.target))  setMsgOpen(false);
+    }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const initials = (userName || 'A').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const DIVIDER  = <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.18)', margin: '0 2px', flexShrink: 0 }} />;
+
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-      <rect x="1" y="1" width="6" height="6" rx="1.5"/>
-      <rect x="11" y="1" width="6" height="6" rx="1.5"/>
-      <rect x="1" y="11" width="6" height="6" rx="1.5"/>
-      <rect x="11" y="11" width="6" height="6" rx="1.5"/>
-    </svg>
-  )
-}
-function AiIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><path d="M9 9h.01M15 9h.01M9.5 15a5 5 0 005 0"/></svg>
-}
-function ClockIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-}
-function ChatBadge() {
-  return (
-    <div style={{ position:'relative' }}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-      <span style={{ position:'absolute', top:-6, right:-7, background:'var(--danger)', color:'#fff', fontSize:9, fontWeight:700, borderRadius:8, padding:'0 4px', lineHeight:'13px', minWidth:13, textAlign:'center' }}>4</span>
-    </div>
-  )
+    <>
+      <nav style={{
+        height: NAVBAR_H,
+        background: '#714b67',
+        display: 'flex',
+        alignItems: 'center',
+        flexShrink: 0,
+        position: 'relative',
+        zIndex: 100,
+        userSelect: 'none',
+        /* NO overflow:hidden here — that was killing dropdowns */
+      }}>
+
+        {/* Waffle */}
+        <NavBtn title="Home" active={switcherOpen}
+          onClick={() => setSwitcherOpen(!switcherOpen)}>
+          <WaffleIcon />
+        </NavBtn>
+
+        {/* App pill */}
+        <button
+          onClick={() => navigate('/erp/home')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px 4px 6px',
+            background: 'rgba(0,0,0,0.18)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 5, color: '#fff',
+            cursor: 'pointer', marginRight: 2, flexShrink: 0,
+            fontFamily: 'inherit',
+          }}>
+          <div style={{
+            width: 22, height: 22, borderRadius: 5,
+            background: 'rgba(255,255,255,0.22)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, fontWeight: 800, color: '#fff',
+          }}>O</div>
+          <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+            {mod?.label || 'Home'}
+          </span>
+        </button>
+
+        {/* Divider */}
+        {DIVIDER}
+
+        {/* ── Module menu items ─────────────────────────────────
+            overflow: visible is CRITICAL — hidden clips dropdowns  */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          height: '100%',
+          flex: 1,
+          overflow: 'visible',   /* ← must be visible, NOT hidden */
+          minWidth: 0,
+        }}>
+          {menuItems.map((item, idx) => (
+            <NavMenuItem
+              key={idx}
+              item={item}
+              navbarHeight={NAVBAR_H}
+            />
+          ))}
+        </div>
+
+        {/* ── Right side ────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', paddingRight: 8, gap: 1, flexShrink: 0 }}>
+
+          <NavBtn title="Odoo AI"><AIIcon /></NavBtn>
+
+          {/* Messaging */}
+          <div ref={msgRef} style={{ position: 'relative' }}>
+            <NavBtn title="Messaging" active={msgOpen} badge={4}
+              onClick={() => setMsgOpen(!msgOpen)}>
+              <MessageIcon />
+            </NavBtn>
+            {msgOpen && (
+              <div style={{
+                position: 'fixed',
+                top: NAVBAR_H,
+                right: 80,
+                width: 280,
+                background: '#1e1f2e',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                zIndex: 9999,
+              }}>
+                <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>Messaging</span>
+                </div>
+                <div style={{ padding: '20px 14px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>No new messages</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <NavBtn title="Activities" badge={3}><ClockIcon /></NavBtn>
+          <NavBtn title="Debug Mode"><XIcon /></NavBtn>
+
+          {DIVIDER}
+
+          <span style={{
+            fontSize: 13, color: 'rgba(255,255,255,0.88)', fontWeight: 500,
+            padding: '0 8px 0 4px', maxWidth: 130,
+            overflow: 'hidden', textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap', flexShrink: 0, cursor: 'default',
+          }}>
+            {userName}
+          </span>
+
+          {/* Avatar + user menu */}
+          <div ref={userRef} style={{ position: 'relative', paddingRight: 4 }}>
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              title={userEmail}
+              style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: '#00b5b5',
+                border: '2px solid rgba(255,255,255,0.2)',
+                color: '#fff', fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                transition: 'border-color .1s', flexShrink: 0,
+                fontFamily: 'inherit',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.6)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'}
+            >{initials}</button>
+
+            {userMenuOpen && (
+              <div style={{
+                position: 'fixed',
+                top: NAVBAR_H,
+                right: 8,
+                background: '#1e1f2e',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 6,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                zIndex: 9999,
+                minWidth: 210,
+              }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>{userName}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{userEmail}</div>
+                </div>
+                {[
+                  { icon: '👤', label: 'My Profile',      action: () => navigate('/erp/settings') },
+                  { icon: '⚙',  label: 'Preferences',     action: () => navigate('/erp/settings') },
+                  { icon: '🏢', label: 'My Companies',     action: () => navigate('/erp/settings/companies') },
+                  null,
+                  { icon: '📚', label: 'Back to Learning', action: () => navigate('/dashboard') },
+                  { icon: '🚪', label: 'Log out',          action: () => navigate('/login'), danger: true },
+                ].map((item, i) => item === null
+                  ? <div key={i} style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
+                  : (
+                    <button key={i}
+                      onClick={() => { item.action(); setUserMenuOpen(false); }}
+                      style={{
+                        width: '100%', padding: '9px 16px',
+                        background: 'transparent', border: 'none',
+                        textAlign: 'left', fontSize: 13,
+                        color: item.danger ? '#e74c3c' : 'rgba(255,255,255,0.82)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        gap: 9, fontFamily: 'inherit', transition: 'background .08s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ fontSize: 14 }}>{item.icon}</span>
+                      {item.label}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {switcherOpen && <AppSwitcher onClose={() => setSwitcherOpen(false)} />}
+    </>
+  );
 }

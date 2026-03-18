@@ -1,175 +1,521 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ═══════════════════════════════════════════════════════════════════
+   erp/src/index.css  — Innovation Odoo AI ERP Simulator
+   Dark theme based on live Odoo 19 instance colors
+   ═══════════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════════════
-   ODOO DARK THEME — extracted from live Odoo screenshots
-   ═══════════════════════════════════════════════════════════════ */
+/* ── CSS Variables ──────────────────────────────────────────────── */
 :root {
-  /* ── Page surfaces ─────────────────────────────────────── */
-  --bg:              #1a1b2e;   /* main page background       */
-  --surface:         #252638;   /* cards, panels, dropdowns   */
-  --surface2:        #2e2f45;   /* elevated / hover           */
-  --surface3:        #363750;   /* active / selected          */
+  /* ── Long-form erp-* tokens (used by shell components) ─────── */
+  --erp-bg:            #1a1b2e;
+  --erp-sidebar:       #1e1f32;
+  --erp-sidebar-hover: #252640;
+  --erp-sidebar-active:#2d2e4d;
+  --erp-card:          #22243a;
+  --erp-input-bg:      #1a1b2e;
+  --erp-purple:        #714b67;
+  --erp-teal:          #00b5b5;
+  --erp-teal-light:    #00d0d0;
+  --erp-text:          #d4d4e8;
+  --erp-text-muted:    #7f8096;
+  --erp-text-link:     #00b5b5;
+  --erp-text-heading:  #e8e8f5;
+  --erp-border:        #2e3050;
+  --erp-border-strong: #3d4070;
+  --erp-success:       #28a745;
+  --erp-success-bg:    rgba(40,167,69,0.12);
+  --erp-warning:       #f0ad4e;
+  --erp-warning-bg:    rgba(240,173,78,0.12);
+  --erp-danger:        #dc3545;
+  --erp-danger-bg:     rgba(220,53,69,0.12);
+  --erp-info:          #17a2b8;
+  --erp-info-bg:       rgba(23,162,184,0.12);
+  --erp-stage-new:     #6c5fc7;
+  --erp-stage-progress:#17a2b8;
+  --erp-stage-won:     #28a745;
+  --erp-stage-lost:    #dc3545;
+  --erp-font:          'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --erp-font-mono:     'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --erp-radius:        6px;
+  --erp-radius-lg:     10px;
+  --erp-radius-xl:     14px;
+  --erp-transition:    all 0.15s ease;
 
-  /* ── Borders ───────────────────────────────────────────── */
-  --border:          rgba(255,255,255,0.09);
-  --border2:         rgba(255,255,255,0.15);
-
-  /* ── Text ──────────────────────────────────────────────── */
-  --text:            #dcdce4;   /* primary text               */
-  --text2:           #9899ac;   /* secondary / muted          */
-  --text3:           #6b6c7e;   /* placeholder / hint         */
-
-  /* ── Brand accents ─────────────────────────────────────── */
-  --teal:            #00b5b5;   /* active states, links       */
-  --teal-light:      #00d4d4;
-  --purple:          #714b67;   /* primary buttons            */
-  --purple2:         #875a7b;   /* button hover               */
-  --purple3:         #a36897;   /* light purple accent        */
-
-  /* ── Semantic ──────────────────────────────────────────── */
-  --success:         #2ecc71;
-  --success-bg:      rgba(46,204,113,0.15);
-  --warning:         #f0ad4e;
-  --warning-bg:      rgba(240,173,78,0.15);
-  --danger:          #e74c3c;
-  --danger-bg:       rgba(231,76,60,0.15);
-  --info:            #3498db;
-  --info-bg:         rgba(52,152,219,0.15);
-
-  /* ── Layout dims ───────────────────────────────────────── */
-  --navbar-h:        46px;
-  --sidebar-w:       182px;
-  --sidebar-w-sm:    46px;
-
-  /* ── Shadows ───────────────────────────────────────────── */
-  --shadow-sm:       0 1px 4px rgba(0,0,0,0.35);
-  --shadow-md:       0 4px 16px rgba(0,0,0,0.45);
-  --shadow-lg:       0 8px 32px rgba(0,0,0,0.55);
-
-  /* ── Transitions ───────────────────────────────────────── */
-  --t:               0.15s ease;
-
-  /* ── Z-layers ──────────────────────────────────────────── */
-  --z-sidebar:    900;
-  --z-navbar:    1000;
-  --z-dropdown:  1100;
-  --z-modal:     1200;
-  --z-overlay:   1300;
-  --z-toast:     1400;
-  --z-task:      1500;
+  /* ── Short-form aliases (used by module components) ─────────────
+     CRMPipeline, SalesList, ContactsList, etc. all use these.
+     Mapping them to the erp-* values keeps everything in sync.    */
+  --bg:        #1a1b2e;          /* main page background            */
+  --surface:   #1e1f32;          /* kanban column / panel bg        */
+  --surface2:  #22243a;          /* card background                 */
+  --surface3:  #252640;          /* card hover background           */
+  --border:    #2e3050;          /* default border                  */
+  --border2:   #3d4070;          /* strong / focus border           */
+  --text:      #d4d4e8;          /* primary text                    */
+  --text2:     #9090aa;          /* secondary text                  */
+  --text3:     #5a5a7a;          /* muted / placeholder text        */
+  --teal:      #00b5b5;          /* accent / active                 */
+  --teal2:     #00d0d0;          /* teal hover                      */
+  --purple:    #714b67;          /* brand purple                    */
+  --danger:    #dc3545;          /* error / delete                  */
+  --success:   #28a745;
+  --warning:   #f0ad4e;
+  --t:         0.15s ease;       /* transition shorthand            */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 14px rgba(0,0,0,0.35);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.45);
+  --radius:    6px;
+  --radius-lg: 10px;
 }
 
-/* ── Reset ─────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { height: 100%; }
+/* ── Reset ──────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Base ───────────────────────────────────────────────────────── */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
-  font-family: "LGC Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  font-size: 13px;
+  font-family: var(--erp-font);
+  font-size: 14px;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
 }
-a { color: var(--teal); text-decoration: none; }
-a:hover { color: var(--teal-light); }
 
-/* ── Scrollbar ─────────────────────────────────────────────────── */
-::-webkit-scrollbar        { width: 5px; height: 5px; }
-::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
-
-/* ══════════════════════════════════════════════════════════════════
-   BUTTON SYSTEM
-   ══════════════════════════════════════════════════════════════════ */
-.btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 12px; font-size: 13px; font-weight: 500;
-  border-radius: 4px; border: 1px solid transparent;
-  cursor: pointer; white-space: nowrap; user-select: none;
-  transition: background var(--t), border-color var(--t), opacity var(--t);
-  line-height: 1.6;
+/* ── ERP Layout Shell ───────────────────────────────────────────── */
+#erp-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
-.btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* Primary — purple */
-.btn-primary { background: var(--purple); border-color: var(--purple); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--purple2); border-color: var(--purple2); }
+.erp-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;       /* ← critical: allows flex children to shrink */
+  overflow: hidden;
+}
 
-/* Secondary — outline */
-.btn-secondary { background: transparent; border-color: var(--border2); color: var(--text); }
-.btn-secondary:hover:not(:disabled) { background: var(--surface2); }
+.erp-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
 
-/* Danger */
-.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn-danger:hover:not(:disabled) { background: #c0392b; }
+/* ── Sidebar ────────────────────────────────────────────────────── */
+.erp-sidebar {
+  width: 230px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
 
-/* Link style */
-.btn-link { background: none; border: none; color: var(--teal); padding: 4px 6px; }
-.btn-link:hover { color: var(--teal-light); }
+.erp-sidebar-section {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
 
-.btn-sm { padding: 2px 8px; font-size: 12px; }
-.btn-icon { padding: 4px 8px; min-width: 30px; justify-content: center; }
+.erp-sidebar-title {
+  padding: 6px 16px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 
-/* ══════════════════════════════════════════════════════════════════
-   INPUT SYSTEM
-   ══════════════════════════════════════════════════════════════════ */
-.o-input {
-  width: 100%; padding: 4px 8px; font-size: 13px;
-  color: var(--text); background: var(--surface);
-  border: 1px solid var(--border2); border-radius: 4px;
-  line-height: 1.6; transition: border-color var(--t), box-shadow var(--t);
+.erp-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  border-radius: 0;
+  transition: var(--t);
+  text-decoration: none;
   font-family: inherit;
 }
-.o-input::placeholder { color: var(--text3); }
-.o-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px rgba(0,181,181,0.2); }
-.o-input:read-only { background: var(--surface2); cursor: default; opacity: 0.7; }
-
-/* ══════════════════════════════════════════════════════════════════
-   BADGE / STATUS
-   ══════════════════════════════════════════════════════════════════ */
-.badge {
-  display: inline-flex; align-items: center;
-  padding: 1px 8px; font-size: 11px; font-weight: 600;
-  border-radius: 20px; white-space: nowrap;
-}
-.badge-success { background: var(--success-bg); color: var(--success); }
-.badge-warning { background: var(--warning-bg); color: var(--warning); }
-.badge-danger  { background: var(--danger-bg);  color: var(--danger);  }
-.badge-info    { background: var(--info-bg);     color: var(--info);    }
-.badge-muted   { background: var(--surface3);    color: var(--text2);   }
-.badge-purple  { background: rgba(113,75,103,0.3); color: var(--purple3); }
-
-/* ══════════════════════════════════════════════════════════════════
-   SPINNER
-   ══════════════════════════════════════════════════════════════════ */
-@keyframes spin { to { transform: rotate(360deg); } }
-.spinner {
-  width: 18px; height: 18px;
-  border: 2px solid var(--border2);
-  border-top-color: var(--teal);
-  border-radius: 50%;
-  animation: spin 0.65s linear infinite;
-  display: inline-block;
+.erp-sidebar-item:hover  { background: var(--surface3); color: var(--text); }
+.erp-sidebar-item.active {
+  background: var(--surface3);
+  color: var(--teal);
+  font-weight: 500;
+  border-left: 3px solid var(--teal);
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   EMPTY STATE
-   ══════════════════════════════════════════════════════════════════ */
-.empty-state {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 14px; padding: 64px 24px;
-  color: var(--text2); text-align: center;
+/* ── Views ──────────────────────────────────────────────────────── */
+.erp-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
-.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text); }
-.empty-state p  { font-size: 13px; max-width: 380px; line-height: 1.6; }
 
-/* ══════════════════════════════════════════════════════════════════
-   MISC UTILITIES
-   ══════════════════════════════════════════════════════════════════ */
-.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
-.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.erp-view-header {
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.erp-view-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.erp-view-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+/* ── Action Bar ─────────────────────────────────────────────────── */
+.erp-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Buttons — both erp-btn and plain btn/btn-* classes ──────────
+   CRMPipeline uses .btn .btn-primary .btn-sm etc.                 */
+.erp-btn,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--erp-font);
+  cursor: pointer;
+  transition: var(--t);
+  white-space: nowrap;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.erp-btn:hover,
+.btn:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+/* Primary */
+.erp-btn-primary,
+.btn-primary {
+  background: var(--teal) !important;
+  color: #fff !important;
+  border-color: var(--teal) !important;
+}
+.erp-btn-primary:hover,
+.btn-primary:hover {
+  background: var(--teal2) !important;
+  border-color: var(--teal2) !important;
+  color: #fff !important;
+}
+
+/* Secondary */
+.btn-secondary {
+  background: transparent;
+  border-color: var(--border2);
+  color: var(--text2);
+}
+.btn-secondary:hover {
+  background: var(--surface3);
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+/* Danger */
+.erp-btn-danger,
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.btn-danger:hover {
+  background: rgba(220,53,69,0.12);
+}
+
+/* Sizes */
+.btn-sm {
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+}
+.btn-lg {
+  padding: 9px 20px;
+  font-size: 14px;
+}
+
+/* ── View type switcher tabs ────────────────────────────────────── */
+.erp-view-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.erp-view-tab {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: var(--t);
+}
+.erp-view-tab:hover  { background: var(--surface3); color: var(--text); }
+.erp-view-tab.active { background: var(--surface3); color: var(--teal); border-color: var(--border); }
+
+/* ── List View ──────────────────────────────────────────────────── */
+.erp-list {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.erp-list th {
+  text-align: left;
+  padding: 8px 12px;
+  color: var(--text3);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+}
+.erp-list th:hover { color: var(--text); }
+.erp-list td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.erp-list tr:last-child td { border-bottom: none; }
+.erp-list tr:hover td    { background: rgba(255,255,255,0.025); cursor: pointer; }
+.erp-list input[type="checkbox"] { accent-color: var(--teal); }
+
+/* ── Kanban ─────────────────────────────────────────────────────── */
+.erp-kanban {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 16px 20px;
+  flex: 1;
+  min-height: 0;
+  align-items: flex-start;
+}
+.erp-kanban-col {
+  flex-shrink: 0;
+  width: 260px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 160px);
+}
+.erp-kanban-col-header {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.erp-kanban-col-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.erp-kanban-col-count {
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+.erp-kanban-col-body {
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.erp-kanban-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: var(--t);
+}
+.erp-kanban-card:hover {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 1px var(--teal);
+}
+
+/* ── Form View ──────────────────────────────────────────────────── */
+.erp-form {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin: 16px 20px;
+}
+.erp-form-group  { margin-bottom: 16px; }
+.erp-form-label  {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  margin-bottom: 5px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.erp-form-field {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--erp-font);
+  outline: none;
+  transition: border-color .15s;
+}
+.erp-form-field:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(0,181,181,0.12);
+}
+
+/* ── Badges / Status pills ──────────────────────────────────────── */
+.erp-badge            { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.erp-badge-success    { background: rgba(40,167,69,0.12);  color: var(--success); }
+.erp-badge-warning    { background: rgba(240,173,78,0.12); color: var(--warning); }
+.erp-badge-danger     { background: rgba(220,53,69,0.12);  color: var(--danger); }
+.erp-badge-info       { background: rgba(23,162,184,0.12); color: #17a2b8; }
+.erp-badge-muted      { background: rgba(255,255,255,0.05); color: var(--text3); }
+
+/* ── Stage pipeline bar ─────────────────────────────────────────── */
+.erp-stage-bar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 8px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.erp-stage-step {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--t);
+  white-space: nowrap;
+  color: var(--text3);
+}
+.erp-stage-step:hover   { border-color: var(--border2); color: var(--text); }
+.erp-stage-step.active  { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+/* ── Chatter ────────────────────────────────────────────────────── */
+.erp-chatter           { border-top: 1px solid var(--border); padding: 16px 20px; background: var(--surface); }
+.erp-chatter-tabs      { display: flex; gap: 4px; margin-bottom: 12px; }
+.erp-chatter-tab       { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text3); font-size: 12px; cursor: pointer; font-family: inherit; transition: var(--t); }
+.erp-chatter-tab.active{ background: var(--teal); color: #fff; border-color: var(--teal); }
+.erp-chatter-msg       { display: flex; gap: 10px; margin-bottom: 12px; }
+.erp-chatter-avatar    { width: 32px; height: 32px; border-radius: 50%; background: var(--purple); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.erp-chatter-bubble    { background: var(--surface2); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 8px 12px; flex: 1; font-size: 13px; color: var(--text); line-height: 1.5; }
+.erp-chatter-meta      { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+
+/* ── Search bar ─────────────────────────────────────────────────── */
+.erp-search            { display: flex; align-items: center; gap: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 10px; flex: 1; max-width: 340px; }
+.erp-search input      { background: transparent; border: none; outline: none; color: var(--text); font-size: 13px; font-family: inherit; flex: 1; }
+.erp-search input::placeholder { color: var(--text3); }
+
+/* ── Inputs / Select (used in forms) ────────────────────────────── */
+input, select, textarea {
+  font-family: inherit;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .erp-sidebar    { display: none; }
+  .erp-kanban-col { width: 220px; }
+}
+
+/* ── Animations ─────────────────────────────────────────────────── */
+@keyframes erp-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.erp-animate { animation: erp-fade-in 0.18s ease forwards; }
+
+/* ── Task highlight ring ────────────────────────────────────────── */
+[data-erp-highlight] {
+  outline: 3px solid var(--teal) !important;
+  outline-offset: 2px;
+  animation: erp-pulse 1.2s ease-in-out infinite;
+}
+@keyframes erp-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,181,181,0.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(0,181,181,0); }
+}
+
+/* ── AppHome full-height fix ────────────────────────────────────── */
+/* AppHome uses minHeight:100vh in inline style which causes black gap.
+   The o-home class or the direct child of .erp-content should fill height. */
+.erp-content > div {
+  flex: 1;
+  min-height: 0;
+}

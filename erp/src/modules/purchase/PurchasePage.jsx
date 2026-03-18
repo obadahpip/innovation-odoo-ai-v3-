@@ -1,85 +1,132 @@
 /**
- * PurchasePage.jsx — Purchase Orders
- * Odoo 19.0 model: purchase.order
- * Route base: /erp/purchase/orders
- * Sub-nav: ['Requests for Quotation', 'Purchase Orders', 'Reporting', 'Configuration']
+ * PurchasePage.jsx — Purchase module
+ * Lesson 41: Purchase
+ * Selectors: confirm-button, create-button, field-amount, field-name,
+ *            field-product, list-row, save-button, status-bar
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { GenericList, GenericForm, StateBadge, PriorityStars, FieldRow } from '../ModuleFactory.jsx'
-import ActionBar from '@shell/ActionBar.jsx'
+import SupplyChainShell from '../inventory/SupplyChainShell'
+import {
+  PageHeader, GenericList, GenericForm,
+  StatusBadge, StatusBarField, OrderLinesTable, ConfirmButton,
+} from '../inventory/supplyHelpers'
+import { useRecordList } from '@data/useRecord.js'
+import { createRecord, getRecord, updateRecord } from '@data/db.js'
 
-const STATE_MAP = {
-  'draft':{label:'RFQ',color:'var(--text3)',bg:'var(--surface3)'},
-  'sent':{label:'RFQ Sent',color:'var(--info)',bg:'rgba(52,152,219,0.15)'},
-  'to approve':{label:'To Approve',color:'var(--warning)',bg:'rgba(240,173,78,0.15)'},
-  'purchase':{label:'Purchase Order',color:'var(--success)',bg:'rgba(46,204,113,0.15)'},
-  'done':{label:'Locked',color:'var(--text2)',bg:'var(--surface3)'},
-  'cancel':{label:'Cancelled',color:'var(--danger)',bg:'rgba(231,76,60,0.15)'},
-}
-
-const COLUMNS = [
-  {key:'name',label:'Reference',width:'16%'},
-  {key:'partner_id',label:'Vendor',width:'20%',render:(v) => <PartnerCell id={v}/>},
-  {key:'date_order',label:'Order Date',width:'13%',render:(v) => v ? new Date(v).toLocaleDateString() : '—'},
-  {key:'amount_total',label:'Total',width:'12%',render:(v) => v!=null ? `${Number(v).toFixed(3)} د.ا` : '—'},
-  {key:'invoice_status',label:'Billing',width:'12%'},
-  {key:'state',label:'Status',width:'13%',render:(v) => <StateBadge value={v} map={STATE_MAP}/>},
+const SIDEBAR = [
+  { label: 'ORDERS', items: [
+    { label: 'Requests for Quotation', path: '/erp/purchase/rfq',    icon: '📝' },
+    { label: 'Purchase Orders',        path: '/erp/purchase/orders', icon: '🛍' },
+  ]},
+  { label: 'PRODUCTS', items: [
+    { label: 'Products',        path: '/erp/purchase/products',   icon: '📦' },
+    { label: 'Vendor Prices',   path: '/erp/purchase/pricelists', icon: '💰' },
+  ]},
+  { label: 'REPORTING', items: [
+    { label: 'Purchase Analysis', path: '/erp/purchase/reporting', icon: '📊' },
+  ]},
+  { label: 'CONFIGURATION', items: [
+    { label: 'Settings', path: '/erp/purchase/config', icon: '⚙' },
+  ]},
 ]
 
-const STAGES = [
-  {value:'draft',label:'RFQ'},
-  {value:'sent',label:'RFQ Sent'},
-  {value:'purchase',label:'Purchase Order'},
-  {value:'done',label:'Locked'}
-]
-
-const DEFAULTS = { state:'draft', active:true }
-
-// ── Lazy partner name cell ────────────────────────────────────────
-function PartnerCell({ id }) {
-  const [n, setN] = useState(null)
-  if (!n && id) import('@data/db.js').then(db => db.getRecord('res.partner', id).then(p => p && setN(p.name)))
-  return <span>{n||id||'—'}</span>
+async function seedPurchase() {
+  const { listRecords } = await import('@data/db.js')
+  const existing = await listRecords('purchase.order')
+  if (existing.length > 0) return
+  for (const p of [
+    { name: 'P/00001', partner_id: 'Azure Interior',    state: 'purchase', date_order: '2025-02-15', amount_total: 4500.00 },
+    { name: 'P/00002', partner_id: 'Deco Addict',       state: 'draft',    date_order: '2025-03-01', amount_total: 1200.00 },
+    { name: 'P/00003', partner_id: 'Ready Mat',         state: 'sent',     date_order: '2025-03-05', amount_total: 8750.00 },
+    { name: 'P/00004', partner_id: 'Lumber Inc',        state: 'purchase', date_order: '2025-03-10', amount_total: 620.00  },
+    { name: 'P/00005', partner_id: 'Azure Interior',    state: 'draft',    date_order: '2025-03-15', amount_total: 3200.00 },
+  ]) await createRecord('purchase.order', p)
 }
 
-// ── List view ─────────────────────────────────────────────────────
-export function PurchasePage() {
+/* ── RFQ / Orders list ──────────────────────────────────────────── */
+export function PurchasePage({ stateFilter, title = 'Purchase Orders' }) {
+  const navigate = useNavigate()
+  const { records, reload } = useRecordList('purchase.order', { sortKey: 'name' })
+
+  useEffect(() => { seedPurchase().then(reload) }, [])
+
+  const rows = stateFilter ? records.filter(r => stateFilter.includes(r.state)) : records
+
+  const STATE_COLOR = { draft: 'var(--text3)', sent: 'var(--warning)', purchase: 'var(--success)', cancel: 'var(--danger)' }
+  const STATE_LABEL = { draft: 'RFQ', sent: 'RFQ Sent', purchase: 'Purchase Order', cancel: 'Cancelled' }
+
+  const columns = [
+    { key: 'name',         label: 'Reference',  style: { fontWeight: 500, color: 'var(--teal)' } },
+    { key: 'partner_id',   label: 'Vendor',     style: { color: 'var(--text2)' } },
+    { key: 'date_order',   label: 'Order Date', style: { color: 'var(--text2)' } },
+    { key: 'amount_total', label: 'Total',      render: v => v ? `$${Number(v).toFixed(2)}` : '—' },
+    { key: 'state',        label: 'Status',     render: v => <StatusBadge label={STATE_LABEL[v] || v} color={STATE_COLOR[v] || 'var(--text3)'} /> },
+  ]
+
   return (
-    <GenericList
-      model="purchase.order"
-      title="Purchase Orders"
-      columns={COLUMNS}
-      sortKey="__createdAt" sortDir="desc"
-      newPath="/erp/purchase/orders/new"
-      formPath="/erp/purchase/orders/:id"
-      searchFields={['name','subject','title']}
-      emptyIcon="🛍️"
-      views={['list','kanban','activity']}
-    />
+    <SupplyChainShell sidebarSections={SIDEBAR}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <PageHeader title={title} onNew={() => navigate('/erp/purchase/orders/new')} />
+        <GenericList columns={columns} rows={rows} onRowClick={r => navigate(`/erp/purchase/orders/${r.id}`)} />
+      </div>
+    </SupplyChainShell>
   )
 }
 
-// ── Form view ─────────────────────────────────────────────────────
+/* ── Purchase Order Form ────────────────────────────────────────── */
 export function PurchaseForm() {
-  const { id } = useParams()
+  const navigate = useNavigate()
+  const { id }   = useParams()
+  const isNew    = !id || id === 'new'
+
+  const [vals, setVals]   = useState({ name: '', partner_id: '', date_order: new Date().toISOString().split('T')[0], state: 'draft', notes: '' })
+  const [lines, setLines] = useState([{ id: 1, product_id: '', name: '', product_qty: 1, price_unit: 0 }])
+  const [status, setStatus] = useState('Draft')
+
+  useEffect(() => {
+    if (!isNew) getRecord('purchase.order', id).then(r => {
+      if (r) {
+        setVals(r)
+        const map = { draft: 'Draft', sent: 'RFQ Sent', purchase: 'Purchase Order', cancel: 'Cancelled' }
+        setStatus(map[r.state] || 'Draft')
+      }
+    })
+  }, [id])
+
+  const handleSave = async () => {
+    const stateMap = { 'Draft': 'draft', 'RFQ Sent': 'sent', 'Purchase Order': 'purchase', 'Cancelled': 'cancel' }
+    const total = lines.reduce((s, l) => s + (Number(l.product_qty) || 0) * (Number(l.price_unit) || 0), 0)
+    const data = { ...vals, state: stateMap[status] || 'draft', amount_total: total }
+    if (isNew) await createRecord('purchase.order', data)
+    else       await updateRecord('purchase.order', id, data)
+    navigate('/erp/purchase/orders')
+  }
+
+  const handleConfirm = async () => { setStatus('Purchase Order'); await handleSave() }
+
+  const fields = [
+    { key: 'partner_id',  label: 'Vendor',       required: true, dataErp: 'field-name', fullWidth: false },
+    { key: 'date_order',  label: 'Order Date',   type: 'date',   dataErp: 'field-date' },
+    { key: 'notes',       label: 'Notes',        type: 'textarea', dataErp: 'field-description', fullWidth: true },
+  ]
+
   return (
-    <GenericForm
-      model="purchase.order" id={id}
-      defaults={DEFAULTS}
-      title="Purchase Order"
-      backPath="/erp/purchase/orders" backLabel="Purchase Orders"
-      stages={STAGES}
-    >
-      {({ record, setField }) => (
-        <div style={{ maxWidth:820 }}>
-          <FieldRow label='Vendor'><input className='o-input' value={record?.partner_id||''} onChange={e=>setField('partner_id',e.target.value)} placeholder='Search...'/></FieldRow>
-          <FieldRow label='Order Date'><input type='datetime-local' className='o-input' value={(record?.date_order||'').slice(0,16)} onChange={e=>setField('date_order',e.target.value)} style={{colorScheme:'dark'}}/></FieldRow>
-          <FieldRow label='Currency'><input className='o-input' value={record?.currency_id||''} onChange={e=>setField('currency_id',e.target.value)}/></FieldRow>
-        </div>
-      )}
-    </GenericForm>
+    <SupplyChainShell sidebarSections={SIDEBAR}>
+      <StatusBarField
+        stages={['Draft', 'RFQ Sent', 'Purchase Order', 'Done']}
+        current={status}
+        onChange={setStatus}
+      />
+      <GenericForm
+        fields={fields} values={vals}
+        onChange={(k, v) => setVals(p => ({ ...p, [k]: v }))}
+        onSave={handleSave}
+        onDiscard={() => navigate('/erp/purchase/orders')}
+        extra={status === 'Draft' && <ConfirmButton label="Confirm Order" onClick={handleConfirm} />}
+      >
+        <OrderLinesTable lines={lines} onChange={setLines} productLabel="Product" />
+      </GenericForm>
+    </SupplyChainShell>
   )
 }
-
-export default PurchasePage
