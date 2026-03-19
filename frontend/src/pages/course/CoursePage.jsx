@@ -88,7 +88,7 @@ function ExitDialog({ onConfirm, onCancel }) {
 }
 
 // ── Table of Contents sidebar ─────────────────────────────────────────────────
-function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onToggle }) {
+function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onToggle, fileId, lesson, navigate }) {
   return (
     <div className={`flex-shrink-0 bg-white border-r border-gray-200 flex-col transition-all duration-200 hidden md:flex
       ${collapsed ? "w-10" : "w-56"}`}>
@@ -98,27 +98,44 @@ function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onTo
         {collapsed ? "›" : "‹"}
       </button>
       {!collapsed && (
-        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">Contents</div>
-          {slides.map((slide, i) => {
-            const isCurrent = i === currentIndex;
-            const isPassed  = i <= passedIndex;
-            return (
-              <button key={slide.id} onClick={() => onSelect(i)}
-                className={`w-full flex items-start gap-2 px-2 py-2 rounded-lg text-left transition-all min-h-[44px] ${
-                  isCurrent ? "bg-brand/10 text-brand" : "text-gray-600 hover:bg-gray-50"
-                }`}>
-                <span className="flex-shrink-0 mt-0.5 text-xs">
-                  {isPassed && !isCurrent ? "✓" : isCurrent ? "▶" : "○"}
-                </span>
-                <span className={`text-xs leading-snug line-clamp-2 ${
-                  isCurrent ? "font-semibold" : isPassed ? "text-gray-400" : ""
-                }`}>
-                  {slide.is_intro ? "📖 " : ""}{slide.is_conclusion ? "✅ " : ""}{slide.title}
-                </span>
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Slides list */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">Contents</div>
+            {slides.map((slide, i) => {
+              const isCurrent = i === currentIndex;
+              const isPassed  = i <= passedIndex;
+              return (
+                <button key={slide.id} onClick={() => onSelect(i)}
+                  className={`w-full flex items-start gap-2 px-2 py-2 rounded-lg text-left transition-all min-h-[44px] ${
+                    isCurrent ? "bg-brand/10 text-brand" : "text-gray-600 hover:bg-gray-50"
+                  }`}>
+                  <span className="flex-shrink-0 mt-0.5 text-xs">
+                    {isPassed && !isCurrent ? "✓" : isCurrent ? "▶" : "○"}
+                  </span>
+                  <span className={`text-xs leading-snug line-clamp-2 ${
+                    isCurrent ? "font-semibold" : isPassed ? "text-gray-400" : ""
+                  }`}>
+                    {slide.is_intro ? "📖 " : ""}{slide.is_conclusion ? "✅ " : ""}{slide.title}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Practice on simulation — only for non-intro lessons */}
+          {lesson?.lesson_type !== "intro" && (
+            <div className="flex-shrink-0 p-2 border-t border-gray-100">
+              <button
+                onClick={() => navigate(`/simulate/${fileId}`)}
+                className="w-full flex items-center gap-2 px-2 py-2.5 rounded-lg text-left text-xs font-semibold transition hover:opacity-80"
+                style={{ color: PURPLE }}
+              >
+                <span>🖥</span>
+                Practice on simulation
               </button>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -136,7 +153,6 @@ function AIBottomSheet({ slide, currentSlide, totalSlides, open, onClose }) {
   useEffect(() => { setMode(null); setMessages([]); setQuestion(""); }, [slide?.id]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
-  // Prevent body scroll when sheet is open
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -174,23 +190,18 @@ function AIBottomSheet({ slide, currentSlide, totalSlides, open, onClose }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={onClose} />
-      {/* Sheet */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl lg:hidden flex flex-col"
         style={{ maxHeight: "75dvh" }}>
-        {/* Handle */}
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
-        {/* Header */}
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
           <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: PURPLE }}>AI</div>
           <span className="text-sm font-medium text-gray-700">AI Tutor</span>
           <span className="text-xs text-gray-400 ml-auto">Slide {currentSlide}/{totalSlides}</span>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-2 w-8 h-8 flex items-center justify-center text-lg">×</button>
         </div>
-        {/* Action buttons */}
         <div className="px-4 py-3 flex gap-2 border-b border-gray-100 flex-shrink-0">
           <button onClick={handleSimplify} disabled={loading}
             className="flex-1 py-2.5 rounded-lg text-xs font-medium border transition disabled:opacity-50 min-h-[44px]"
@@ -203,7 +214,6 @@ function AIBottomSheet({ slide, currentSlide, totalSlides, open, onClose }) {
             Ask a question
           </button>
         </div>
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {!mode && (
             <div className="flex flex-col items-center justify-center h-full gap-2 text-center py-8">
@@ -232,7 +242,6 @@ function AIBottomSheet({ slide, currentSlide, totalSlides, open, onClose }) {
           )}
           <div ref={bottomRef} />
         </div>
-        {/* Input */}
         {mode === "ask" && (
           <div className="px-4 py-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
             <input value={question} onChange={(e) => setQuestion(e.target.value)}
@@ -252,7 +261,7 @@ function AIBottomSheet({ slide, currentSlide, totalSlides, open, onClose }) {
   );
 }
 
-// ── AI panel (desktop sidebar — unchanged) ────────────────────────────────────
+// ── AI panel (desktop sidebar) ────────────────────────────────────────────────
 function AIPanel({ slide, currentSlide, totalSlides }) {
   const [mode, setMode]         = useState(null);
   const [question, setQuestion] = useState("");
@@ -400,7 +409,7 @@ export default function CoursePage() {
   const [tocCollapsed,   setTocCollapsed]  = useState(false);
   const [showShortcuts,  setShowShortcuts] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
-  const [aiSheetOpen,    setAiSheetOpen]   = useState(false); // mobile AI sheet
+  const [aiSheetOpen,    setAiSheetOpen]   = useState(false);
 
   // ── Load lesson ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -472,7 +481,7 @@ export default function CoursePage() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleNext, handlePrev, showExitDialog, showShortcuts]);
 
-  // ── States ───────────────────────────────────────────────────────────────
+  // ── Early returns ────────────────────────────────────────────────────────
   if (loading) return <CourseSkeleton />;
 
   if (error) return (
@@ -487,28 +496,60 @@ export default function CoursePage() {
     </div>
   );
 
-  if (showComplete) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center max-w-md w-full">
-        <div className="text-5xl mb-4">🎉</div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Lesson Complete!</h2>
-        <p className="text-sm text-gray-500 mb-6">You finished <strong>{lesson?.title}</strong>.</p>
-        <button onClick={() => navigate("/dashboard")} className="btn-primary w-full min-h-[44px]">
-          Back to Dashboard
-        </button>
+  // ── Lesson complete screen ───────────────────────────────────────────────
+  if (showComplete) {
+    const isIntro = lesson?.lesson_type === "intro";
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center max-w-md w-full">
+          <div className="text-5xl mb-4">🎉</div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Lesson Complete!</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            You finished <strong>{lesson?.title}</strong>.
+          </p>
+
+          {!isIntro ? (
+            <>
+              {/* Primary CTA — navigate to split-view simulate page (same tab) */}
+              <button
+                onClick={() => navigate(`/simulate/${fileId}`)}
+                className="w-full min-h-[44px] rounded-xl font-semibold text-sm text-white mb-3 transition hover:opacity-90 flex items-center justify-center gap-2"
+                style={{ background: PURPLE }}
+              >
+                <span>🖥</span>
+                Practice in Simulator →
+              </button>
+
+              <p className="text-xs text-gray-400 mb-4">
+                Reinforce what you learned by completing the guided task in the Odoo Simulator.
+              </p>
+
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="w-full text-sm text-gray-400 hover:text-gray-600 transition underline"
+              >
+                Skip — Back to Dashboard
+              </button>
+            </>
+          ) : (
+            <button onClick={() => navigate("/dashboard")} className="btn-primary w-full min-h-[44px]">
+              Back to Dashboard
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   const slide    = slides[currentIndex];
   const progress = slides.length > 0 ? ((currentIndex + 1) / slides.length) * 100 : 0;
 
   return (
-    // Use 100dvh so it works correctly on mobile browsers with address bars
     <div className="flex flex-col bg-gray-100 overflow-hidden" style={{ height: "100dvh" }}>
 
-      {showShortcuts   && <ShortcutModal onClose={() => setShowShortcuts(false)} />}
-      {showExitDialog  && <ExitDialog onConfirm={() => navigate("/dashboard")} onCancel={() => setShowExitDialog(false)} />}
+      {showShortcuts  && <ShortcutModal onClose={() => setShowShortcuts(false)} />}
+      {showExitDialog && <ExitDialog onConfirm={() => navigate("/dashboard")} onCancel={() => setShowExitDialog(false)} />}
 
       {/* Mobile AI bottom sheet */}
       <AIBottomSheet
@@ -531,7 +572,6 @@ export default function CoursePage() {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
           <span className="text-xs text-gray-400 hidden sm:block">{currentIndex + 1} / {slides.length}</span>
-          {/* Mobile AI button */}
           <button onClick={() => setAiSheetOpen(true)}
             className="lg:hidden text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition min-h-[44px] flex items-center">
             💡 AI
@@ -562,6 +602,9 @@ export default function CoursePage() {
           onSelect={goTo}
           collapsed={tocCollapsed}
           onToggle={() => setTocCollapsed((c) => !c)}
+          fileId={fileId}
+          lesson={lesson}
+          navigate={navigate}
         />
 
         {/* Slide viewer */}

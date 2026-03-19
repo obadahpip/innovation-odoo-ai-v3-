@@ -4,7 +4,7 @@ import api from "../../api/client";
 import useAuthStore from "../../store/authStore";
 import toast from "react-hot-toast";
 
-// ── Confetti ─────────────────────────────────────────────────────────────────
+// ── Confetti ──────────────────────────────────────────────────────────────────
 function Confetti({ active }) {
   const colors = ["#714B67", "#a855f7", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
   if (!active) return null;
@@ -207,11 +207,21 @@ export default function DashboardPage() {
           <span className="font-semibold text-gray-800 text-sm hidden sm:block">Innovation Odoo AI</span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/plan")}
-            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition">
-            My Plan
+          <button onClick={() => navigate("/profile")}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition hidden sm:block">
+            Profile
           </button>
-          <span className="text-xs text-gray-400 hidden sm:block">{user?.email}</span>
+          {/* Method 1 — opens simulator in new tab, no specific lesson */}
+          <button
+            onClick={() => {
+              const erpBase = import.meta.env.VITE_ERP_URL || (window.location.origin + '/erp');
+              window.open(erpBase + '/lessons', '_blank');
+            }}
+            className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition hover:opacity-90"
+            style={{ background: '#714B67' }}
+          >
+            Odoo Simulator
+          </button>
           <button onClick={() => { logout(); navigate("/login"); }}
             className="text-xs text-gray-400 hover:text-gray-600 transition">Logout</button>
         </div>
@@ -278,13 +288,16 @@ export default function DashboardPage() {
 
           {/* Quick links */}
           <div className="p-3 border-t border-gray-100 space-y-1">
-            <button onClick={() => navigate("/plan")}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition">
-              <span>📋</span> My Plan
-            </button>
-            <button onClick={() => navigate("/profile")}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition">
-              <span>👤</span> Profile
+            {/* Odoo Simulator — new tab (Method 1 from sidebar) */}
+            <button
+              onClick={() => {
+                const erpBase = import.meta.env.VITE_ERP_URL || (window.location.origin + '/erp');
+                window.open(erpBase + '/lessons', '_blank');
+              }}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-semibold hover:opacity-80 transition"
+              style={{ color: '#714B67' }}
+            >
+              <span>🖥</span> Odoo Simulator
             </button>
             {pct === 100 && (
               <button onClick={() => navigate("/certificate")}
@@ -420,23 +433,41 @@ export default function DashboardPage() {
                     {(isOpen || hasActiveFilter) && filesToShow.length > 0 && (
                       <div className="border-t border-gray-100 divide-y divide-gray-50">
                         {filesToShow.map((file) => (
-                          <button key={file.id}
-                            onClick={() => navigate(`/course/${file.id}`)}
-                            className="w-full px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition text-left group"
-                          >
-                            <span className="text-base flex-shrink-0">
-                              {file.status === "completed" ? "✅" : file.status === "in_progress" ? "▶️" : "⚪"}
-                            </span>
-                            <span className={`text-sm flex-1 min-w-0 truncate ${
-                              file.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"
-                            }`}>
-                              {file.title}
-                            </span>
-                            {file.lesson_type === "intro" && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-purple-100 text-purple-700 flex-shrink-0">INTRO</span>
+                          <div key={file.id} className="flex items-center hover:bg-gray-50 transition group">
+                            {/* Main lesson button → goes to CoursePage */}
+                            <button
+                              onClick={() => navigate(`/course/${file.id}`)}
+                              className="flex-1 px-5 py-3 flex items-center gap-3 text-left min-w-0"
+                            >
+                              <span className="text-base flex-shrink-0">
+                                {file.status === "completed" ? "✅" : file.status === "in_progress" ? "▶️" : "⚪"}
+                              </span>
+                              <span className={`text-sm flex-1 min-w-0 truncate ${
+                                file.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"
+                              }`}>
+                                {file.title}
+                              </span>
+                              {file.lesson_type === "intro" && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-purple-100 text-purple-700 flex-shrink-0">INTRO</span>
+                              )}
+                              <StatusBadge status={file.status} />
+                            </button>
+
+                            {/* Method 2 — only for completed non-intro lessons */}
+                            {file.status === "completed" && file.lesson_type !== "intro" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/simulate/${file.id}`);
+                                }}
+                                className="flex-shrink-0 mr-3 px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition hover:opacity-80 whitespace-nowrap"
+                                style={{ color: '#714B67', borderColor: '#714B67', background: 'rgba(113,75,103,0.06)' }}
+                                title="Practice this lesson in the Odoo Simulator"
+                              >
+                                Try on Simulator
+                              </button>
                             )}
-                            <StatusBadge status={file.status} />
-                          </button>
+                          </div>
                         ))}
                       </div>
                     )}
@@ -447,6 +478,7 @@ export default function DashboardPage() {
                         No matching lessons in this section
                       </div>
                     )}
+
                   </div>
                 );
               })}

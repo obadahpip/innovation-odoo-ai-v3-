@@ -7,6 +7,7 @@ import TaskEngineProvider from './engine/TaskEngineProvider.jsx'
 import LessonSelector from './engine/LessonSelector.jsx'
 import ERPShell from './shell/ERPShell.jsx'
 import AppHome from './modules/home/AppHome.jsx'
+import ERPLauncher from './engine/ERPLauncher.jsx'
 
 // ── Phase 3 core modules ─────────────────────────────────────────
 import CRMPipeline        from './modules/crm/CRMPipeline.jsx'
@@ -411,6 +412,7 @@ export default function App() {
 
       <Route path="/erp/lessons" element={<ERPShell />}><Route index element={<LessonSelector />} /></Route>
       <Route path="*" element={<Navigate to="/erp" replace />} />
+      <Route path="launch" element={<ERPLauncher />} />
     </Routes>
     </TaskEngineProvider>
   )

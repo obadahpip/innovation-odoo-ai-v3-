@@ -3,11 +3,13 @@
  * Watches DOM interactions and calls engine.completeStep()
  * when the user's action matches the current step's requirements.
  *
- * Strategy:
- *  - 'navigate'  → completes automatically when _navigateToStep fires
+ * Action types:
+ *  - 'navigate'  → waits for user to CLICK the highlighted app selector
+ *                  (e.g. app-crm, app-contacts). This keeps the user on
+ *                  the home screen and lets them actually click the app icon.
  *  - 'click'     → completes when user clicks any element matching highlight_selector
  *  - 'type'      → completes when user types into any field matching highlight_selector
- *  - 'observe'   → auto-completes after 1.5s (no user action required)
+ *  - 'observe'   → auto-completes after 1.8s (no user action required)
  */
 
 let _unsubscribe = null
@@ -21,20 +23,49 @@ export function watchStep(step, done) {
   stopWatching()
   if (!step) return
 
-  const sel    = step.highlight_selector   // e.g. "new-button", "field-name"
+  const sel    = step.highlight_selector   // e.g. "app-crm", "new-button"
   const action = step.action_type          // navigate | click | type | observe
 
-  // ── observe: auto-complete ─────────────────────────────────────
+  // ── observe: auto-complete after delay ────────────────────────
   if (action === 'observe') {
     const timer = setTimeout(done, 1800)
     _unsubscribe = () => clearTimeout(timer)
     return
   }
 
-  // ── navigate: complete immediately (navigation already triggered) ─
+  // ── navigate: wait for user to CLICK the highlighted app icon ──
+  // This is intentional — step 1 always navigates to an app from home.
+  // We highlight the app icon and wait for the user to click it.
+  // Do NOT auto-advance: the user should see home and click the icon themselves.
   if (action === 'navigate') {
-    const timer = setTimeout(done, 400)
-    _unsubscribe = () => clearTimeout(timer)
+    const handler = (e) => {
+      if (sel) {
+        // Accept click on the highlighted element or any ancestor/descendant
+        const matched =
+          e.target.closest(`[data-erp="${sel}"]`) ||
+          e.target.getAttribute?.('data-erp') === sel
+
+        if (matched) {
+          done()
+          return
+        }
+
+        // Also accept clicking a button/link inside an element with data-erp matching sel
+        const targets = document.querySelectorAll(`[data-erp="${sel}"]`)
+        for (const t of targets) {
+          if (t.contains(e.target)) {
+            done()
+            return
+          }
+        }
+      } else {
+        // No selector — accept any button/link click (fallback)
+        const tag = e.target.tagName.toLowerCase()
+        if (['button', 'a'].includes(tag)) done()
+      }
+    }
+    document.addEventListener('click', handler, true)
+    _unsubscribe = () => document.removeEventListener('click', handler, true)
     return
   }
 
@@ -47,16 +78,19 @@ export function watchStep(step, done) {
   // ── click ──────────────────────────────────────────────────────
   if (action === 'click') {
     const handler = (e) => {
-      // Accept click on element with matching data-erp, or on ancestor/descendant
-      const targets = findTargets()
-      for (const t of targets) {
-        if (t.contains(e.target) || e.target.closest(`[data-erp="${sel}"]`)) {
-          done()
-          return
+      if (sel) {
+        const matched =
+          e.target.closest(`[data-erp="${sel}"]`) ||
+          e.target.getAttribute?.('data-erp') === sel
+
+        if (matched) { done(); return }
+
+        const targets = findTargets()
+        for (const t of targets) {
+          if (t.contains(e.target)) { done(); return }
         }
-      }
-      // If no selector, accept any meaningful click
-      if (!sel) {
+      } else {
+        // No selector — accept any meaningful click
         const tag = e.target.tagName.toLowerCase()
         if (['button', 'a', 'input', 'select'].includes(tag)) done()
       }
@@ -74,11 +108,8 @@ export function watchStep(step, done) {
       const target  = e.target
       const dataErp = target.getAttribute?.('data-erp')
 
-      // Match: element has data-erp matching selector
-      const directMatch = sel && dataErp === sel
-      // Match: selector absent — any input/textarea/select is fine
-      const openMatch   = !sel && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
-      // Match: ancestor has data-erp matching selector (e.g. field inside a wrapper)
+      const directMatch   = sel && dataErp === sel
+      const openMatch     = !sel && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
       const ancestorMatch = sel && target.closest?.(`[data-erp="${sel}"]`)
 
       if (directMatch || openMatch || ancestorMatch) {
@@ -97,9 +128,13 @@ export function watchStep(step, done) {
     return
   }
 
-  // ── fallback: complete on any click after 500ms ────────────────
-  const timer = setTimeout(done, 500)
-  _unsubscribe = () => clearTimeout(timer)
+  // ── fallback: complete on any click ───────────────────────────
+  const handler = (e) => {
+    const tag = e.target.tagName.toLowerCase()
+    if (['button', 'a', 'input', 'select'].includes(tag)) done()
+  }
+  document.addEventListener('click', handler, true)
+  _unsubscribe = () => document.removeEventListener('click', handler, true)
 }
 
 export function stopWatching() {

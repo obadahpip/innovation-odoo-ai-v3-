@@ -1,13 +1,9 @@
 /**
- * useTaskEngine.js  — v2
- * Central Zustand store for the guided task engine.
- *
- * New in v2:
- *  - Calls progressBridge.reportLessonComplete() on lesson finish
- *  - Calls progressBridge.reportLessonProgress() every few steps
- *  - Persists completed lessons + in-progress state via enginePersistence
- *  - Exposes resumeLesson() to restore a partially-done lesson
- *  - Loads persisted completedLessonIds on first import
+ * useTaskEngine.js  — v3
+ * Key fix: _navigateToStep no longer auto-navigates for 'navigate' action steps.
+ * The user must click the highlighted app icon themselves — that click is what
+ * completes the step and naturally takes them to the right screen.
+ * skipStep still navigates when skipping a navigate step.
  */
 import { create } from 'zustand'
 import { SCREEN_ROUTES, APP_SELECTOR_ROUTES } from './taskRoutes.js'
@@ -15,14 +11,12 @@ import allStepsRaw from './allSteps.json'
 import { reportLessonComplete, reportLessonProgress } from './progressBridge.js'
 import {
   loadCompletedLessons,
-  saveCompletedLessons,
   markLessonComplete,
   loadInProgressLesson,
   saveInProgressLesson,
   clearInProgressLesson,
 } from './enginePersistence.js'
 
-// ── Index lessons by id ────────────────────────────────────────
 const LESSONS_BY_ID = {}
 for (const lesson of allStepsRaw) {
   LESSONS_BY_ID[lesson.lesson_id] = lesson
@@ -30,34 +24,27 @@ for (const lesson of allStepsRaw) {
 
 export const ALL_LESSONS = allStepsRaw
 
-// ── Store ─────────────────────────────────────────────────────
 export const useTaskEngine = create((set, get) => ({
-  // State
   activeLesson:       null,
   currentStepIndex:   0,
-  status:             'idle',          // idle | running | step_complete | lesson_complete
+  status:             'idle',
   waitingForAction:   false,
   highlightSelector:  null,
   navigateFn:         null,
-  completedLessonIds: new Set(),       // loaded from IndexedDB on init
-  inProgressLesson:   null,            // { lessonId, stepIndex } or null
-  hydrated:           false,           // true once persistence is loaded
+  completedLessonIds: new Set(),
+  inProgressLesson:   null,
+  hydrated:           false,
 
-  // ── Hydrate from storage on first use ─────────────────────────
+  // ── Hydrate ────────────────────────────────────────────────────
   hydrate: async () => {
     if (get().hydrated) return
     const [completed, inProgress] = await Promise.all([
       loadCompletedLessons(),
       loadInProgressLesson(),
     ])
-    set({
-      completedLessonIds: completed,
-      inProgressLesson:   inProgress,
-      hydrated:           true,
-    })
+    set({ completedLessonIds: completed, inProgressLesson: inProgress, hydrated: true })
   },
 
-  // ── Inject navigate fn ─────────────────────────────────────────
   setNavigate: (fn) => set({ navigateFn: fn }),
 
   // ── Start a lesson ─────────────────────────────────────────────
@@ -70,16 +57,16 @@ export const useTaskEngine = create((set, get) => ({
       currentStepIndex:  0,
       status:            'running',
       waitingForAction:  true,
+      // Highlight step 0's selector so the user knows what to click
       highlightSelector: lesson.steps[0]?.highlight_selector || null,
     })
 
-    // Save in-progress state
     saveInProgressLesson(lessonId, 0)
-
-    get()._navigateToStep(lesson.steps[0])
+    // Do NOT call _navigateToStep here for step 0 — we already navigated
+    // to /erp/home in ERPLauncher/LessonSelector. Just show the highlight.
   },
 
-  // ── Resume a partially-completed lesson ────────────────────────
+  // ── Resume ─────────────────────────────────────────────────────
   resumeLesson: (lessonId, fromStepIndex = 0) => {
     const lesson = LESSONS_BY_ID[lessonId]
     if (!lesson) return
@@ -95,10 +82,11 @@ export const useTaskEngine = create((set, get) => ({
     })
 
     saveInProgressLesson(lessonId, idx)
-    get()._navigateToStep(step)
+    // For resume: navigate to the correct screen (user may be on wrong screen)
+    get()._doNavigate(step)
   },
 
-  // ── Stop / exit ────────────────────────────────────────────────
+  // ── Stop ───────────────────────────────────────────────────────
   stopLesson: () => {
     clearInProgressLesson()
     set({
@@ -120,10 +108,8 @@ export const useTaskEngine = create((set, get) => ({
     const isLast    = nextIndex >= activeLesson.steps.length
 
     if (isLast) {
-      // ── LESSON COMPLETE ──────────────────────────────────────
       const newCompleted = new Set(completedLessonIds)
       newCompleted.add(activeLesson.lesson_id)
-
       set({
         completedLessonIds: newCompleted,
         status:             'lesson_complete',
@@ -131,30 +117,24 @@ export const useTaskEngine = create((set, get) => ({
         highlightSelector:  null,
         inProgressLesson:   null,
       })
-
-      // Persist + report to backend (both non-blocking)
       markLessonComplete(activeLesson.lesson_id)
       clearInProgressLesson()
       reportLessonComplete(activeLesson.lesson_id)
-
     } else {
-      // ── ADVANCE TO NEXT STEP ─────────────────────────────────
       const nextStep = activeLesson.steps[nextIndex]
-
       set({
         currentStepIndex:  nextIndex,
         status:            'running',
         waitingForAction:  true,
         highlightSelector: nextStep.highlight_selector || null,
       })
-
-      // Persist progress every 3 steps to avoid excessive writes
       if (nextIndex % 3 === 0) {
         saveInProgressLesson(activeLesson.lesson_id, nextIndex)
         reportLessonProgress(activeLesson.lesson_id, nextIndex)
       }
-
-      get()._navigateToStep(nextStep)
+      // For navigate steps: do NOT auto-navigate — let user click the highlighted element.
+      // For non-navigate steps: screen guard in TaskEngineProvider handles it.
+      // No call to _navigateToStep here intentionally.
     }
   },
 
@@ -162,12 +142,15 @@ export const useTaskEngine = create((set, get) => ({
   skipStep: () => {
     const { activeLesson, currentStepIndex } = get()
     if (!activeLesson) return
-    const nextIndex = currentStepIndex + 1
+
+    const skippedStep = activeLesson.steps[currentStepIndex]
+    const nextIndex   = currentStepIndex + 1
+
     if (nextIndex >= activeLesson.steps.length) {
-      // Treat skip on last step as completion
       get().completeStep()
       return
     }
+
     const nextStep = activeLesson.steps[nextIndex]
     set({
       currentStepIndex:  nextIndex,
@@ -175,25 +158,34 @@ export const useTaskEngine = create((set, get) => ({
       waitingForAction:  true,
       highlightSelector: nextStep.highlight_selector || null,
     })
-    get()._navigateToStep(nextStep)
-  },
 
-  // ── Internal: navigate to step's screen ───────────────────────
-  _navigateToStep: (step) => {
-    const { navigateFn } = get()
-    if (!navigateFn || !step) return
-
-    if (step.action_type === 'navigate') {
-      if (step.highlight_selector && APP_SELECTOR_ROUTES[step.highlight_selector]) {
-        navigateFn(APP_SELECTOR_ROUTES[step.highlight_selector])
-        return
-      }
-      const route = SCREEN_ROUTES[step.odoo_screen_target]
-      if (route) navigateFn(route)
+    // When SKIPPING a navigate step: actually perform the navigation
+    // so the user ends up on the right screen even though they didn't click.
+    if (skippedStep?.action_type === 'navigate') {
+      get()._doNavigate(skippedStep)
     }
   },
 
-  // ── Helpers ────────────────────────────────────────────────────
+  // ── Internal: actually perform navigation ──────────────────────
+  // Used only by resumeLesson and skipStep (not startLesson/completeStep).
+  _doNavigate: (step) => {
+    const { navigateFn } = get()
+    if (!navigateFn || !step) return
+
+    if (step.highlight_selector && APP_SELECTOR_ROUTES[step.highlight_selector]) {
+      navigateFn(APP_SELECTOR_ROUTES[step.highlight_selector])
+      return
+    }
+    const route = SCREEN_ROUTES[step.odoo_screen_target]
+    if (route) navigateFn(route)
+  },
+
+  // ── Legacy alias (keep for TaskEngineProvider screen guard) ────
+  _navigateToStep: (step) => {
+    // Intentionally a no-op for navigate steps.
+    // Non-navigate screen routing handled by TaskEngineProvider.
+  },
+
   getCurrentStep: () => {
     const { activeLesson, currentStepIndex } = get()
     if (!activeLesson) return null
@@ -206,10 +198,7 @@ export const useTaskEngine = create((set, get) => ({
     return Math.round((currentStepIndex / activeLesson.steps.length) * 100)
   },
 
-  isCompleted: (lessonId) => {
-    return get().completedLessonIds.has(Number(lessonId))
-  },
+  isCompleted: (lessonId) => get().completedLessonIds.has(Number(lessonId)),
 }))
 
-// ── Auto-hydrate on import ─────────────────────────────────────
 useTaskEngine.getState().hydrate()

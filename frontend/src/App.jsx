@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import SimulatePage from './pages/simulate/SimulatePage';
+
 
 // Public
 import LandingPage from './pages/LandingPage';
@@ -60,10 +62,13 @@ export default function App() {
         <Route path="/profile" element={
           <ProtectedRoute><ErrorBoundary><ProfilePage /></ErrorBoundary></ProtectedRoute>
         } />
+        <Route path="/simulate/:fileId" element={
+          <ProtectedRoute><ErrorBoundary><SimulatePage /></ErrorBoundary></ProtectedRoute>} />
 
         {/* Errors */}
         <Route path="/500" element={<ServerError />} />
         <Route path="*"    element={<NotFound />} />
+
       </Routes>
 
       <GlobalAIChat />
