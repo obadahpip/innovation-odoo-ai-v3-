@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import toast from "react-hot-toast";
+import OdooPanel from "../../components/course/OdooPanel";
 
 const PURPLE = "#714B67";
 
@@ -88,7 +89,7 @@ function ExitDialog({ onConfirm, onCancel }) {
 }
 
 // ── Table of Contents sidebar ─────────────────────────────────────────────────
-function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onToggle, fileId, lesson, navigate }) {
+function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onToggle }) {
   return (
     <div className={`flex-shrink-0 bg-white border-r border-gray-200 flex-col transition-all duration-200 hidden md:flex
       ${collapsed ? "w-10" : "w-56"}`}>
@@ -99,7 +100,6 @@ function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onTo
       </button>
       {!collapsed && (
         <div className="flex flex-col h-full overflow-hidden">
-          {/* Slides list */}
           <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 py-1">Contents</div>
             {slides.map((slide, i) => {
@@ -397,6 +397,10 @@ export default function CoursePage() {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [aiSheetOpen,    setAiSheetOpen]   = useState(false);
 
+  // ── V3: Odoo task state ──────────────────────────────────────────────────
+  const [odooPath, setOdooPath] = useState('');
+  const [odooTask, setOdooTask] = useState('');
+
   // ── Load lesson ──────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
@@ -407,6 +411,11 @@ export default function CoursePage() {
         setLesson(lessonRes.data);
         const s = slidesRes.data.slides || [];
         setSlides(s);
+
+        // ── V3: read odoo task fields from slides response ─────────────────
+        setOdooPath(slidesRes.data.odoo_path || '');
+        setOdooTask(slidesRes.data.odoo_task || '');
+
         api.get("/progress/dashboard/")
           .then((res) => {
             const allFiles     = res.data.sections?.flatMap((sec) => sec.files) || [];
@@ -482,47 +491,71 @@ export default function CoursePage() {
     </div>
   );
 
-  // ── Lesson complete screen ───────────────────────────────────────────────
+  // ── Lesson complete screen (V3) ──────────────────────────────────────────
   if (showComplete) {
     const isIntro = lesson?.lesson_type === "intro";
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center max-w-md w-full">
-          <div className="text-5xl mb-4">🎉</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Lesson Complete!</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            You finished <strong>{lesson?.title}</strong>.
-          </p>
+      <div className="min-h-screen bg-gray-50 overflow-y-auto">
+        {/* Top bar — back nav */}
+        <div className="bg-white border-b border-gray-200 px-5 py-3 flex items-center justify-between sticky top-0 z-10">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="text-sm text-gray-400 hover:text-gray-700 transition flex items-center gap-1"
+          >
+            ← Dashboard
+          </button>
+          <span className="text-sm font-medium text-gray-600 truncate max-w-xs">{lesson?.title}</span>
+          <div className="w-20" />
+        </div>
 
-          {!isIntro ? (
-            <>
-              {/* Primary CTA — navigate to split-view simulate page (same tab) */}
-              <button
-                onClick={() => navigate(`/simulate/${fileId}`)}
-                className="w-full min-h-[44px] rounded-xl font-semibold text-sm text-white mb-3 transition hover:opacity-90 flex items-center justify-center gap-2"
-                style={{ background: PURPLE }}
-              >
-                <span>🖥</span>
-                Practice in odoo →
-              </button>
+        <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
-              <p className="text-xs text-gray-400 mb-4">
-                Reinforce what you learned by completing the guided task in Odoo .
-              </p>
-
+          {/* Celebration header */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Lesson Complete!</h2>
+            <p className="text-sm text-gray-500">
+              You finished <strong>{lesson?.title}</strong>.
+            </p>
+            {isIntro && (
               <button
                 onClick={() => navigate("/dashboard")}
-                className="w-full text-sm text-gray-400 hover:text-gray-600 transition underline"
+                className="mt-6 btn-primary min-h-[44px] px-8"
               >
-                Skip — Back to Dashboard
+                Back to Dashboard
               </button>
+            )}
+          </div>
+
+          {/* V3: OdooPanel — only for non-intro lessons */}
+          {!isIntro && (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  Now practise in Odoo
+                </span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <OdooPanel
+                fileId={fileId}
+                odooPath={odooPath}
+                odooTask={odooTask}
+              />
+
+              <div className="text-center pb-4">
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="text-sm text-gray-400 hover:text-gray-600 transition underline"
+                >
+                  Skip — Back to Dashboard
+                </button>
+              </div>
             </>
-          ) : (
-            <button onClick={() => navigate("/dashboard")} className="btn-primary w-full min-h-[44px]">
-              Back to Dashboard
-            </button>
           )}
+
         </div>
       </div>
     );
@@ -588,9 +621,6 @@ export default function CoursePage() {
           onSelect={goTo}
           collapsed={tocCollapsed}
           onToggle={() => setTocCollapsed((c) => !c)}
-          fileId={fileId}
-          lesson={lesson}
-          navigate={navigate}
         />
 
         {/* Slide viewer */}

@@ -9,6 +9,8 @@ from .views import (
     AIHistoryView,
     AIHistorySaveView,
     AIHistoryClearView,
+    # ── V3 ────────────────────────────────────────────────────────────────────
+    TaskAssessView,
 )
 
 urlpatterns = [
@@ -18,8 +20,10 @@ urlpatterns = [
     path('slides/ask/',                 SlideAskView.as_view(),         name='slide-ask'),
     path('ai/chat/',                    GlobalAIView.as_view(),         name='global-ai-chat'),
     path('tutor/',                      TutorChatView.as_view(),        name='tutor-chat'),
-    # ── Phase 5: AI conversation persistence ────────────────────────────────
+    # ── Phase 5: AI conversation persistence ─────────────────────────────────
     path('ai/history/',                 AIHistoryView.as_view(),        name='ai-history'),
     path('ai/history/save/',            AIHistorySaveView.as_view(),    name='ai-history-save'),
     path('ai/history/clear/',           AIHistoryClearView.as_view(),   name='ai-history-clear'),
+    # ── V3: Practical task AI assessment ─────────────────────────────────────
+    path('task/assess/',                TaskAssessView.as_view(),       name='task-assess'),
 ]

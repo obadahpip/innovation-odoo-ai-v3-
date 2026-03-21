@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 from django.conf import settings
 from openai import OpenAI
 
@@ -27,9 +28,15 @@ class LessonSlidesView(APIView):
         } for s in slides]
 
         return Response({
-            'file_id': file.id, 'title': file.title,
-            'lesson_type': file.lesson_type, 'section': file.section.name,
-            'total_slides': len(data), 'slides': data,
+            'file_id':      file.id,
+            'title':        file.title,
+            'lesson_type':  file.lesson_type,
+            'section':      file.section.name,
+            'total_slides': len(data),
+            'slides':       data,
+            # ── V3 additions ──────────────────────────────────────────────
+            'odoo_path':    file.odoo_path,
+            'odoo_task':    file.odoo_task,
         })
 
 
@@ -41,7 +48,10 @@ class LessonFileDetailView(APIView):
             file = LearningFile.objects.get(id=file_id)
         except LearningFile.DoesNotExist:
             return Response({'detail': 'Lesson not found.'}, status=404)
-        return Response({'id': file.id, 'title': file.title, 'section': file.section.name, 'lesson_type': file.lesson_type})
+        return Response({
+            'id': file.id, 'title': file.title,
+            'section': file.section.name, 'lesson_type': file.lesson_type,
+        })
 
 
 # ── Per-slide AI: Simplify ────────────────────────────────────────────────────
@@ -109,11 +119,76 @@ Content: {slide.content[:800]}"""
         messages.append({'role': 'user', 'content': question})
 
         try:
-            response = client.chat.completions.create(model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7)
+            response = client.chat.completions.create(
+                model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7,
+            )
             answer = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
         return Response({'answer': answer})
+
+
+# ── V3: AI Task Assessment ────────────────────────────────────────────────────
+
+class TaskAssessView(APIView):
+    """
+    POST /api/content/task/assess/
+    Body: { file_id, user_description }
+    Returns: { feedback }
+
+    The student describes what they did in Odoo; GPT-4o compares it against
+    the expected odoo_task for that lesson and gives structured feedback.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file_id          = request.data.get('file_id')
+        user_description = request.data.get('user_description', '').strip()
+
+        if not file_id:
+            return Response({'detail': 'file_id is required.'}, status=400)
+        if not user_description:
+            return Response({'detail': 'user_description is required.'}, status=400)
+
+        file_obj = get_object_or_404(LearningFile, id=file_id)
+        expected_task = file_obj.odoo_task
+
+        if not expected_task:
+            return Response({
+                'feedback': (
+                    "No task has been configured for this lesson yet. "
+                    "Please check back soon!"
+                )
+            })
+
+        system_prompt = (
+            "You are an Odoo training evaluator. "
+            "The student was asked to complete a practical task in Odoo. "
+            "Evaluate their description: tell them what they did correctly, "
+            "what was missing or incorrect, and give them the exact steps to "
+            "complete the task properly. Be encouraging and specific. "
+            "Keep your response under 200 words."
+        )
+        user_prompt = (
+            f"Expected task:\n{expected_task}\n\n"
+            f"Student's description of what they did:\n{user_description}"
+        )
+
+        try:
+            response = client.chat.completions.create(
+                model='gpt-4o',
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user',   'content': user_prompt},
+                ],
+                max_tokens=400,
+                temperature=0.6,
+            )
+            feedback = response.choices[0].message.content.strip()
+        except Exception as e:
+            return Response({'detail': f'AI error: {str(e)}'}, status=503)
+
+        return Response({'feedback': feedback})
 
 
 # ── Global AI chat ────────────────────────────────────────────────────────────
@@ -146,7 +221,9 @@ Be concise and friendly. Do not answer questions unrelated to Odoo or this cours
         messages.append({'role': 'user', 'content': message})
 
         try:
-            response = client.chat.completions.create(model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7)
+            response = client.chat.completions.create(
+                model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7,
+            )
             reply = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)
@@ -173,7 +250,10 @@ class TutorChatView(APIView):
             except LearningFile.DoesNotExist:
                 pass
 
-        system_prompt = f"You are an expert Odoo tutor. {context}\nBe concise, clear, and encouraging. Max 200 words."
+        system_prompt = (
+            f"You are an expert Odoo tutor. {context}\n"
+            "Be concise, clear, and encouraging. Max 200 words."
+        )
         messages = [{'role': 'system', 'content': system_prompt}]
         for msg in history[-6:]:
             if msg.get('role') in ('user', 'assistant'):
@@ -181,7 +261,9 @@ class TutorChatView(APIView):
         messages.append({'role': 'user', 'content': message})
 
         try:
-            response = client.chat.completions.create(model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7)
+            response = client.chat.completions.create(
+                model='gpt-4o', messages=messages, max_tokens=400, temperature=0.7,
+            )
             reply = response.choices[0].message.content.strip()
         except Exception as e:
             return Response({'detail': f'AI error: {str(e)}'}, status=503)

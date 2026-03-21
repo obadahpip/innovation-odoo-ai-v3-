@@ -28,7 +28,19 @@ class LearningFile(models.Model):
     file_order   = models.IntegerField(default=0)
     lesson_type  = models.CharField(max_length=10, choices=LESSON_TYPES, default='lesson')
     created_at   = models.DateTimeField(auto_now_add=True)
-    
+
+    # ── V3 additions ──────────────────────────────────────────────────────────
+    odoo_path = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Odoo URL path for this lesson's practical task. e.g. /odoo/crm, /odoo/accounting/invoices",
+    )
+    odoo_task = models.TextField(
+        blank=True,
+        default='',
+        help_text="Plain-text description of the practical task the user must complete in Odoo.",
+    )
 
     class Meta:
         ordering = ['section__number', 'file_order']
@@ -55,7 +67,7 @@ class LessonSlide(models.Model):
 
 
 class LessonStep(models.Model):
-    """V1 step model — kept for data safety. Not used in V2 UI."""
+    """V1 step model — kept for data safety. Not used in V2/V3 UI."""
     ACTION_TYPES = [
         ('click',    'Click'),
         ('observe',  'Observe'),

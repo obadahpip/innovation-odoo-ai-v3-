@@ -10,28 +10,41 @@ class LearningSectionAdmin(admin.ModelAdmin):
 
 @admin.register(LearningFile)
 class LearningFileAdmin(admin.ModelAdmin):
-    list_display = ('title', 'section', 'lesson_type', 'file_order')
-    list_filter = ('section', 'lesson_type')
-    search_fields = ('title',)
-    ordering = ('section', 'file_order')
+    list_display  = ('title', 'section', 'lesson_type', 'file_order', 'odoo_path')
+    list_filter   = ('section', 'lesson_type')
+    search_fields = ('title', 'odoo_path')
+    ordering      = ('section', 'file_order')
+    fieldsets = (
+        (None, {
+            'fields': ('section', 'title', 'lesson_type', 'file_order'),
+        }),
+        ('V3 — Odoo Practical Task', {
+            'fields':  ('odoo_path', 'odoo_task'),
+            'classes': ('wide',),
+            'description': (
+                'odoo_path: the URL path to open inside Odoo (e.g. /odoo/crm). '
+                'odoo_task: 2–4 sentences describing what the student must do.'
+            ),
+        }),
+    )
 
 
 @admin.register(LessonSlide)
 class LessonSlideAdmin(admin.ModelAdmin):
-    list_display = ('file', 'slide_number', 'title', 'is_intro', 'is_conclusion')
-    list_filter = ('is_intro', 'is_conclusion', 'file__section')
+    list_display  = ('file', 'slide_number', 'title', 'is_intro', 'is_conclusion')
+    list_filter   = ('is_intro', 'is_conclusion', 'file__section')
     search_fields = ('file__title', 'title')
-    ordering = ('file', 'slide_number')
+    ordering      = ('file', 'slide_number')
 
 
 @admin.register(LessonStep)
 class LessonStepAdmin(admin.ModelAdmin):
-    list_display = ('file', 'step_order', 'action_type')
-    list_filter = ('action_type',)
+    list_display  = ('file', 'step_order', 'action_type')
+    list_filter   = ('action_type',)
     search_fields = ('file__title',)
 
 
 @admin.register(QuizQuestion)
 class QuizQuestionAdmin(admin.ModelAdmin):
-    list_display = ('file', 'question_text')
+    list_display  = ('file', 'question_text')
     search_fields = ('file__title', 'question_text')
