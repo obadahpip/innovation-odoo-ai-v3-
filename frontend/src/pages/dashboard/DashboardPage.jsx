@@ -212,7 +212,7 @@ export default function DashboardPage() {
             Profile
           </button>
           {/* Method 1 — opens simulator in new tab, no specific lesson */}
-          <button
+          {/*<button
             onClick={() => {
               const erpBase = import.meta.env.VITE_ERP_URL || (window.location.origin + '/erp');
               window.open(erpBase + '/lessons', '_blank');
@@ -221,7 +221,7 @@ export default function DashboardPage() {
             style={{ background: '#714B67' }}
           >
             Odoo Simulator
-          </button>
+          </button>*/}
           <button onClick={() => { logout(); navigate("/login"); }}
             className="text-xs text-gray-400 hover:text-gray-600 transition">Logout</button>
         </div>
@@ -288,17 +288,6 @@ export default function DashboardPage() {
 
           {/* Quick links */}
           <div className="p-3 border-t border-gray-100 space-y-1">
-            {/* Odoo Simulator — new tab (Method 1 from sidebar) */}
-            <button
-              onClick={() => {
-                const erpBase = import.meta.env.VITE_ERP_URL || (window.location.origin + '/erp');
-                window.open(erpBase + '/lessons', '_blank');
-              }}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-semibold hover:opacity-80 transition"
-              style={{ color: '#714B67' }}
-            >
-              <span>🖥</span> Odoo Simulator
-            </button>
             {pct === 100 && (
               <button onClick={() => navigate("/certificate")}
                 className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-brand hover:bg-brand/5 transition font-medium">
@@ -454,7 +443,7 @@ export default function DashboardPage() {
                             </button>
 
                             {/* Method 2 — only for completed non-intro lessons */}
-                            {file.status === "completed" && file.lesson_type !== "intro" && (
+                            {/*{file.status === "completed" && file.lesson_type !== "intro" && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -466,7 +455,7 @@ export default function DashboardPage() {
                               >
                                 Try on Simulator
                               </button>
-                            )}
+                            )}*/}
                           </div>
                         ))}
                       </div>

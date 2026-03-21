@@ -122,20 +122,6 @@ function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onTo
               );
             })}
           </div>
-
-          {/* Practice on simulation — only for non-intro lessons */}
-          {lesson?.lesson_type !== "intro" && (
-            <div className="flex-shrink-0 p-2 border-t border-gray-100">
-              <button
-                onClick={() => navigate(`/simulate/${fileId}`)}
-                className="w-full flex items-center gap-2 px-2 py-2.5 rounded-lg text-left text-xs font-semibold transition hover:opacity-80"
-                style={{ color: PURPLE }}
-              >
-                <span>🖥</span>
-                Practice on simulation
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -518,11 +504,11 @@ export default function CoursePage() {
                 style={{ background: PURPLE }}
               >
                 <span>🖥</span>
-                Practice in Simulator →
+                Practice in odoo →
               </button>
 
               <p className="text-xs text-gray-400 mb-4">
-                Reinforce what you learned by completing the guided task in the Odoo Simulator.
+                Reinforce what you learned by completing the guided task in Odoo .
               </p>
 
               <button

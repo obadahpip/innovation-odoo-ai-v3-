@@ -28,6 +28,7 @@ class LearningFile(models.Model):
     file_order   = models.IntegerField(default=0)
     lesson_type  = models.CharField(max_length=10, choices=LESSON_TYPES, default='lesson')
     created_at   = models.DateTimeField(auto_now_add=True)
+    
 
     class Meta:
         ordering = ['section__number', 'file_order']
