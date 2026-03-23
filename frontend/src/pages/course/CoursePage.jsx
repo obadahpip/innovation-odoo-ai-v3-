@@ -1,12 +1,26 @@
+/**
+ * CoursePage.jsx — V3
+ *
+ * Three render states:
+ *  1. loading / error  — skeletons / error card
+ *  2. showOdooTask     — split-view: Odoo iframe (left) + OdooPanel task sidebar (right)
+ *                        only for non-intro lessons, mirrors the V2 SimulatePage layout
+ *  3. normal           — slide viewer + AI panel
+ *
+ * "Task Done" on the OdooPanel marks progress complete and goes to dashboard.
+ * Intro lessons skip the Odoo task and go straight to dashboard on complete.
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import toast from "react-hot-toast";
 import OdooPanel from "../../components/course/OdooPanel";
+import { ODOO_BASE_URL } from "../../config";
 
 const PURPLE = "#714B67";
 
-// ── Skeleton loader ───────────────────────────────────────────────────────────
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 function CourseSkeleton() {
   return (
     <div className="flex flex-col bg-gray-100 overflow-hidden" style={{ height: "100dvh" }}>
@@ -27,21 +41,19 @@ function CourseSkeleton() {
           <div className="h-7 w-3/4 bg-gray-200 rounded" />
           <div className="h-4 w-full bg-gray-200 rounded" />
           <div className="h-4 w-5/6 bg-gray-200 rounded" />
-          <div className="h-4 w-full bg-gray-200 rounded" />
         </div>
       </div>
     </div>
   );
 }
 
-// ── Keyboard shortcut modal ───────────────────────────────────────────────────
+// ── Keyboard shortcuts modal ──────────────────────────────────────────────────
 function ShortcutModal({ onClose }) {
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
-
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -52,9 +64,9 @@ function ShortcutModal({ onClose }) {
         <div className="space-y-3">
           {[
             { keys: ["←"],   desc: "Previous slide" },
-            { keys: ["→"],   desc: "Next slide" },
-            { keys: ["Esc"], desc: "Exit lesson" },
-            { keys: ["?"],   desc: "Show shortcuts" },
+            { keys: ["→"],   desc: "Next slide"     },
+            { keys: ["Esc"], desc: "Exit lesson"     },
+            { keys: ["?"],   desc: "Show shortcuts"  },
           ].map(({ keys, desc }) => (
             <div key={desc} className="flex items-center justify-between">
               <span className="text-sm text-gray-600">{desc}</span>
@@ -71,7 +83,7 @@ function ShortcutModal({ onClose }) {
   );
 }
 
-// ── Exit confirmation dialog ──────────────────────────────────────────────────
+// ── Exit dialog ───────────────────────────────────────────────────────────────
 function ExitDialog({ onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -88,7 +100,7 @@ function ExitDialog({ onConfirm, onCancel }) {
   );
 }
 
-// ── Table of Contents sidebar ─────────────────────────────────────────────────
+// ── ToC sidebar ───────────────────────────────────────────────────────────────
 function ToCPanel({ slides, currentIndex, passedIndex, onSelect, collapsed, onToggle }) {
   return (
     <div className={`flex-shrink-0 bg-white border-r border-gray-200 flex-col transition-all duration-200 hidden md:flex
@@ -138,7 +150,6 @@ function AIBottomSheet({ slide, currentSlide, totalSlides, open, onClose }) {
 
   useEffect(() => { setMode(null); setMessages([]); setQuestion(""); }, [slide?.id]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
-
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -173,7 +184,6 @@ function AIBottomSheet({ slide, currentSlide, totalSlides, open, onClose }) {
   };
 
   if (!open) return null;
-
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={onClose} />
@@ -391,15 +401,22 @@ export default function CoursePage() {
   const [passedIndex,    setPassedIndex]   = useState(0);
   const [loading,        setLoading]       = useState(true);
   const [error,          setError]         = useState(null);
-  const [showComplete,   setShowComplete]  = useState(false);
+  const [showOdooTask,   setShowOdooTask]  = useState(false); // V3: replaces showComplete
   const [tocCollapsed,   setTocCollapsed]  = useState(false);
   const [showShortcuts,  setShowShortcuts] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [aiSheetOpen,    setAiSheetOpen]   = useState(false);
 
-  // ── V3: Odoo task state ──────────────────────────────────────────────────
+  // V3: Odoo task fields
   const [odooPath, setOdooPath] = useState('');
   const [odooTask, setOdooTask] = useState('');
+
+  // V3: iframe blocked detection
+  const [iframeBlocked, setIframeBlocked] = useState(false);
+  const iframeRef = useRef(null);
+  const odooUrl = odooPath
+    ? `${ODOO_BASE_URL}${odooPath}`
+    : ODOO_BASE_URL;
 
   // ── Load lesson ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -411,8 +428,6 @@ export default function CoursePage() {
         setLesson(lessonRes.data);
         const s = slidesRes.data.slides || [];
         setSlides(s);
-
-        // ── V3: read odoo task fields from slides response ─────────────────
         setOdooPath(slidesRes.data.odoo_path || '');
         setOdooTask(slidesRes.data.odoo_task || '');
 
@@ -451,12 +466,21 @@ export default function CoursePage() {
     if (currentIndex < slides.length - 1) {
       goTo(currentIndex + 1);
     } else {
+      // Mark complete in backend
       api.post("/progress/update/", {
         file_id: parseInt(fileId), slide_index: currentIndex, completed: true,
       }).catch(() => {});
-      setShowComplete(true);
+
+      const isIntro = lesson?.lesson_type === "intro";
+      if (isIntro) {
+        // Intro lessons: just go to dashboard
+        navigate("/dashboard");
+      } else {
+        // Non-intro: show Odoo practice screen
+        setShowOdooTask(true);
+      }
     }
-  }, [currentIndex, slides.length, fileId, goTo]);
+  }, [currentIndex, slides.length, fileId, lesson, goTo, navigate]);
 
   const handlePrev = useCallback(() => {
     if (currentIndex > 0) goTo(currentIndex - 1);
@@ -466,7 +490,7 @@ export default function CoursePage() {
   useEffect(() => {
     const handler = (e) => {
       if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
-      if (showExitDialog || showShortcuts) return;
+      if (showExitDialog || showShortcuts || showOdooTask) return;
       if (e.key === "ArrowRight") { e.preventDefault(); handleNext(); }
       if (e.key === "ArrowLeft")  { e.preventDefault(); handlePrev(); }
       if (e.key === "?")          { setShowShortcuts(true); }
@@ -474,7 +498,18 @@ export default function CoursePage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleNext, handlePrev, showExitDialog, showShortcuts]);
+  }, [handleNext, handlePrev, showExitDialog, showShortcuts, showOdooTask]);
+
+  // ── iframe block detection ───────────────────────────────────────────────
+const handleIframeLoad = () => {
+
+};
+
+  // ── Task Done handler ────────────────────────────────────────────────────
+  const handleTaskDone = () => {
+    toast.success("Great work! Lesson marked as complete.");
+    navigate("/dashboard");
+  };
 
   // ── Early returns ────────────────────────────────────────────────────────
   if (loading) return <CourseSkeleton />;
@@ -491,76 +526,106 @@ export default function CoursePage() {
     </div>
   );
 
-  // ── Lesson complete screen (V3) ──────────────────────────────────────────
-  if (showComplete) {
-    const isIntro = lesson?.lesson_type === "intro";
-
+  // ── V3: Odoo practice split-view ─────────────────────────────────────────
+  // Same layout as V2 SimulatePage — Odoo iframe left (65%), task panel right (35%)
+  if (showOdooTask) {
     return (
-      <div className="min-h-screen bg-gray-50 overflow-y-auto">
-        {/* Top bar — back nav */}
-        <div className="bg-white border-b border-gray-200 px-5 py-3 flex items-center justify-between sticky top-0 z-10">
+      <div className="flex flex-col overflow-hidden" style={{ height: "100dvh" }}>
+
+        {/* Top bar */}
+        <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-4 flex-shrink-0 z-10">
+          {/* Back to lesson */}
+          <button
+            onClick={() => setShowOdooTask(false)}
+            className="text-sm text-gray-400 hover:text-gray-600 transition flex items-center gap-1 flex-shrink-0"
+          >
+            ← Back to lesson
+          </button>
+          <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+          {/* Title */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="text-base flex-shrink-0">🖥</span>
+            <span className="font-semibold text-gray-800 text-sm truncate">
+              Practice — {lesson?.title}
+            </span>
+          </div>
+          {/* Dashboard shortcut */}
           <button
             onClick={() => navigate("/dashboard")}
-            className="text-sm text-gray-400 hover:text-gray-700 transition flex items-center gap-1"
+            className="text-xs text-gray-400 hover:text-gray-600 transition flex-shrink-0"
           >
-            ← Dashboard
+            Dashboard
           </button>
-          <span className="text-sm font-medium text-gray-600 truncate max-w-xs">{lesson?.title}</span>
-          <div className="w-20" />
         </div>
 
-        <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        {/* Odoo login reminder */}
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 flex-shrink-0">
+          <span className="text-sm">⚠️</span>
+          <span className="text-xs text-amber-800">
+            Make sure you're logged into Odoo first —
+          </span>
+          <a
+            href="http://localhost:8080/web/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-amber-900 underline hover:no-underline"
+          >
+            Log in here ↗
+          </a>
+          <span className="text-xs text-amber-700 ml-1">then come back to this tab.</span>
+        </div>
 
-          {/* Celebration header */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-            <div className="text-5xl mb-4">🎉</div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Lesson Complete!</h2>
-            <p className="text-sm text-gray-500">
-              You finished <strong>{lesson?.title}</strong>.
-            </p>
-            {isIntro && (
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="mt-6 btn-primary min-h-[44px] px-8"
-              >
-                Back to Dashboard
-              </button>
+        {/* Split body */}
+        <div className="flex flex-1 overflow-hidden">
+
+          {/* LEFT — Odoo iframe (or fallback) */}
+          <div className="flex-1 bg-gray-900 overflow-hidden relative" style={{ minWidth: 0 }}>
+            {!iframeBlocked ? (
+              <iframe
+                ref={iframeRef}
+                src={odooUrl}
+                title="Odoo"
+                className="w-full h-full border-0"
+                onLoad={handleIframeLoad}
+                onError={() => setIframeBlocked(true)}
+              />
+            ) : (
+              /* Fallback: iframe was blocked by X-Frame-Options */
+              <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-4">
+                <div className="text-5xl">🔒</div>
+                <p className="text-white/70 text-sm max-w-sm leading-relaxed">
+                  Odoo can't be embedded here due to browser security restrictions.
+                  Open it in a new tab to complete your task, then come back and
+                  click <strong className="text-white">Task Done</strong>.
+                </p>
+                <a
+                  href={odooUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition hover:opacity-90"
+                  style={{ backgroundColor: PURPLE }}
+                >
+                  Open Odoo ↗
+                </a>
+              </div>
             )}
           </div>
 
-          {/* V3: OdooPanel — only for non-intro lessons */}
-          {!isIntro && (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  Now practise in Odoo
-                </span>
-                <div className="flex-1 h-px bg-gray-200" />
-              </div>
-
-              <OdooPanel
-                fileId={fileId}
-                odooPath={odooPath}
-                odooTask={odooTask}
-              />
-
-              <div className="text-center pb-4">
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="text-sm text-gray-400 hover:text-gray-600 transition underline"
-                >
-                  Skip — Back to Dashboard
-                </button>
-              </div>
-            </>
-          )}
+          {/* RIGHT — Task panel */}
+          <div className="flex-shrink-0 border-l border-gray-200 overflow-hidden" style={{ width: "320px" }}>
+            <OdooPanel
+              fileId={fileId}
+              odooTask={odooTask}
+              onDone={handleTaskDone}
+            />
+          </div>
 
         </div>
       </div>
     );
   }
 
+  // ── Normal slide view ────────────────────────────────────────────────────
   const slide    = slides[currentIndex];
   const progress = slides.length > 0 ? ((currentIndex + 1) / slides.length) * 100 : 0;
 
@@ -570,7 +635,6 @@ export default function CoursePage() {
       {showShortcuts  && <ShortcutModal onClose={() => setShowShortcuts(false)} />}
       {showExitDialog && <ExitDialog onConfirm={() => navigate("/dashboard")} onCancel={() => setShowExitDialog(false)} />}
 
-      {/* Mobile AI bottom sheet */}
       <AIBottomSheet
         slide={slide}
         currentSlide={currentIndex + 1}
@@ -579,7 +643,7 @@ export default function CoursePage() {
         onClose={() => setAiSheetOpen(false)}
       />
 
-      {/* ── Breadcrumb bar ───────────────────────────────────────────────── */}
+      {/* Breadcrumb bar */}
       <div className="bg-white border-b border-gray-200 px-4 py-0 flex items-center justify-between flex-shrink-0 min-h-[44px]">
         <div className="flex items-center gap-2 text-sm text-gray-500 min-w-0 py-2">
           <button onClick={() => navigate("/dashboard")}
@@ -605,15 +669,14 @@ export default function CoursePage() {
         </div>
       </div>
 
-      {/* ── Progress bar ─────────────────────────────────────────────────── */}
+      {/* Progress bar */}
       <div className="h-1 bg-gray-200 flex-shrink-0">
         <div className="h-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: PURPLE }} />
       </div>
 
-      {/* ── Body ─────────────────────────────────────────────────────────── */}
+      {/* Body */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ToC sidebar — desktop only */}
         <ToCPanel
           slides={slides}
           currentIndex={currentIndex}
@@ -625,8 +688,6 @@ export default function CoursePage() {
 
         {/* Slide viewer */}
         <div className="flex flex-col overflow-hidden flex-1 bg-white">
-
-          {/* Slide badge */}
           <div className="flex-shrink-0 px-4 sm:px-8 pt-4 sm:pt-6 pb-2">
             {slide?.is_intro      && <span className="text-xs font-semibold px-2 py-1 rounded-md bg-purple-100 text-purple-700">Introduction</span>}
             {slide?.is_conclusion && <span className="text-xs font-semibold px-2 py-1 rounded-md bg-green-100 text-green-700">Key Takeaways</span>}
@@ -634,8 +695,6 @@ export default function CoursePage() {
               <span className="text-xs font-semibold px-2 py-1 rounded-md bg-gray-100 text-gray-500">Slide {slide?.slide_number}</span>
             )}
           </div>
-
-          {/* Slide content */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4">
             {slide ? (
               <>
@@ -685,7 +744,7 @@ export default function CoursePage() {
           </div>
         </div>
 
-        {/* AI panel — desktop only */}
+        {/* AI panel — desktop */}
         <div className="border-l border-gray-200 overflow-hidden hidden lg:block flex-shrink-0" style={{ width: "35%" }}>
           {slide && <AIPanel slide={slide} currentSlide={currentIndex + 1} totalSlides={slides.length} />}
         </div>

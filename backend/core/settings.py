@@ -112,7 +112,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '20/hour',   # unauthenticated — covers auth/register endpoints
-        'user': '60/hour',   # authenticated   — covers AI endpoints
+        'user': '300/minute',   # authenticated   — covers AI endpoints
     },
 }
 
