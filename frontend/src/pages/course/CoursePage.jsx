@@ -412,12 +412,90 @@ export default function CoursePage() {
   const [odooTask, setOdooTask] = useState('');
 
   // V3: iframe blocked detection
-  const [iframeBlocked, setIframeBlocked] = useState(false);
-  const iframeRef = useRef(null);
-  const odooUrl = odooPath
-    ? `${ODOO_BASE_URL}${odooPath}`
-    : ODOO_BASE_URL;
+  const iframeRef    = useRef(null);
+  const odooPopupRef = useRef(null);
+    const openOdooPopup = () => {
+    const sw = window.screen.width;
+    const sh = window.screen.height;
+    const half = Math.floor(sw / 2);
+ 
+    // If popup already open and not closed, just focus it
+    if (odooPopupRef.current && !odooPopupRef.current.closed) {
+      odooPopupRef.current.focus();
+      return;
+    }
+ 
+    // Open Odoo popup on the LEFT half
+    const popup = window.open(
+      odooUrl,
+      'odoo-practice',
+      `width=${half},height=${sh},left=0,top=0`
+    );
+    odooPopupRef.current = popup;
+ 
+    // Move the current app window to the RIGHT half
+    try {
+      window.moveTo(half, 0);
+      window.resizeTo(half, sh);
+    } catch {
+      // Some browsers block resizing — fail silently
+    }
+  };
+ 
+  // Close the popup when leaving the practice screen
+  useEffect(() => {
+    return () => {
+      if (odooPopupRef.current && !odooPopupRef.current.closed) {
+        odooPopupRef.current.close();
+      }
+    };
+  }, []);
+  const odooUrl   = odooPath ? `${ODOO_BASE_URL}${odooPath}` : ODOO_BASE_URL;
+  const isCrossOrigin = (() => {
+    try {
+      const url = new URL(odooUrl);
+      return url.origin !== window.location.origin;
+    } catch {
+      return true; // malformed URL → treat as cross-origin
+    }
+  })();
 
+const ENTERPRISE_PATHS = [
+    '/odoo/accounting',
+    '/odoo/timesheets',
+    '/odoo/knowledge',
+    '/odoo/field-service',
+    '/odoo/planning',
+    '/odoo/studio',
+    '/odoo/sign',
+    '/odoo/spreadsheet',
+    '/odoo/documents',
+    '/odoo/payroll',
+    '/odoo/appraisals',
+    '/odoo/referrals',
+    '/odoo/lunch',
+    '/odoo/social-marketing',
+    '/odoo/marketing-automation',
+    '/odoo/plm',
+    '/odoo/helpdesk',
+    '/odoo/events',
+    '/odoo/surveys',
+    '/odoo/fleet',
+    '/odoo/mass-mailing',
+    '/odoo/attendances',
+    '/odoo/repairs',
+  ];
+ 
+  const isEnterprisePath = ENTERPRISE_PATHS.some(p => odooPath?.startsWith(p));
+ 
+// Then the existing lines follow:
+  const [iframeBlocked, setIframeBlocked] = useState(false);
+  const [iframeOdoo404, setIframeOdoo404] = useState(false);
+
+  useEffect(() => {
+    setIframeBlocked(isCrossOrigin);
+    setIframeOdoo404(false);
+  }, [odooUrl]);
   // ── Load lesson ──────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
@@ -501,9 +579,29 @@ export default function CoursePage() {
   }, [handleNext, handlePrev, showExitDialog, showShortcuts, showOdooTask]);
 
   // ── iframe block detection ───────────────────────────────────────────────
-const handleIframeLoad = () => {
-
-};
+  const handleIframeLoad = () => {
+    // Only reachable for same-origin iframes (localhost dev).
+    // Cross-origin Odoo never reaches here — iframeBlocked is already true.
+    try {
+      const doc = iframeRef.current?.contentDocument;
+      if (!doc || doc.URL === 'about:blank' || doc.URL === '') {
+        setIframeBlocked(true);
+        return;
+      }
+      // Check if Odoo rendered its own 404 (module not installed)
+      const bodyText = doc.body?.textContent || '';
+      if (
+        doc.title?.includes('404') ||
+        bodyText.includes("We couldn't find the page")
+      ) {
+        setIframeOdoo404(true);
+      }
+    } catch {
+      // SecurityError = cross-origin content — should not happen here
+      // since isCrossOrigin already caught it, but guard anyway.
+      setIframeBlocked(true);
+    }
+  };
 
   // ── Task Done handler ────────────────────────────────────────────────────
   const handleTaskDone = () => {
@@ -565,7 +663,7 @@ const handleIframeLoad = () => {
             Make sure you're logged into Odoo first —
           </span>
           <a
-            href="http://localhost:8080/web/login"
+            href={`${ODOO_BASE_URL}/web/login`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-semibold text-amber-900 underline hover:no-underline"
@@ -579,8 +677,96 @@ const handleIframeLoad = () => {
         <div className="flex flex-1 overflow-hidden">
 
           {/* LEFT — Odoo iframe (or fallback) */}
-          <div className="flex-1 bg-gray-900 overflow-hidden relative" style={{ minWidth: 0 }}>
-            {!iframeBlocked ? (
+ <div className="flex-1 bg-gray-900 overflow-hidden relative" style={{ minWidth: 0 }}>
+ 
+            {isEnterprisePath ? (
+              /* ── A: Enterprise-only module ──────────────────────────── */
+              <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-5">
+                <div className="text-5xl">⭐</div>
+                <div className="max-w-sm space-y-2">
+                  <p className="text-white font-semibold text-base">Enterprise Feature</p>
+                  <p className="text-white/70 text-sm leading-relaxed">
+                    This module requires an Odoo Enterprise subscription.
+                    Read the task instructions on the right, then click{' '}
+                    <strong className="text-white">Task Done</strong>.
+                  </p>
+                </div>
+              </div>
+ 
+            ) : iframeOdoo404 ? (
+              /* ── B: Module not installed (same-origin / localhost) ──── */
+              <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-5">
+                <div className="text-5xl">📦</div>
+                <div className="max-w-sm space-y-2">
+                  <p className="text-white font-semibold text-base">Module Not Installed</p>
+                  <p className="text-white/70 text-sm leading-relaxed">
+                    This Odoo module hasn't been installed yet.
+                    Install it from the Apps page, then click Try Again.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      window.open(`${ODOO_BASE_URL}/odoo/apps`, 'odoo-apps',
+                        `width=${Math.floor(window.screen.width/2)},height=${window.screen.height},left=0,top=0`);
+                    }}
+                    className="inline-flex items-center gap-2 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition hover:opacity-90"
+                    style={{ backgroundColor: PURPLE }}
+                  >
+                    Go to Odoo Apps ↗
+                  </button>
+                  <button
+                    onClick={() => setIframeOdoo404(false)}
+                    className="text-white/50 text-xs underline hover:text-white/80"
+                  >
+                    Try again
+                  </button>
+                </div>
+              </div>
+ 
+            ) : isCrossOrigin ? (
+              /* ── C: Cross-origin Odoo — popup split view ────────────── */
+              <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-6">
+                <div className="text-6xl">🖥️</div>
+                <div className="max-w-sm space-y-3">
+                  <p className="text-white font-semibold text-lg">Ready to Practice?</p>
+                  <p className="text-white/70 text-sm leading-relaxed">
+                    Click <strong className="text-white">Launch Odoo</strong> to open Odoo
+                    side-by-side with these task instructions. Follow the steps on the right,
+                    then click <strong className="text-white">Task Done</strong> when finished.
+                  </p>
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-14 h-10 rounded bg-white/10 border border-white/20 flex items-center justify-center text-xs text-white/60">Odoo</div>
+                      <span className="text-white/40 text-[10px]">Left</span>
+                    </div>
+                    <div className="text-white/30 text-lg">+</div>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-14 h-10 rounded bg-white/10 border border-purple-400/40 flex items-center justify-center text-xs text-purple-300">Steps</div>
+                      <span className="text-white/40 text-[10px]">Right (here)</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={openOdooPopup}
+                  className="inline-flex items-center gap-2 text-white font-semibold text-sm px-8 py-3 rounded-xl transition hover:opacity-90 shadow-lg"
+                  style={{ backgroundColor: PURPLE }}
+                >
+                  🚀 Launch Odoo
+                </button>
+                <p className="text-white/30 text-xs">
+                  Already launched?{' '}
+                  <button
+                    onClick={() => odooPopupRef.current?.focus()}
+                    className="underline hover:text-white/60"
+                  >
+                    Bring it to front
+                  </button>
+                </p>
+              </div>
+ 
+            ) : (
+              /* ── D: Same-origin iframe (localhost dev) ──────────────── */
               <iframe
                 ref={iframeRef}
                 src={odooUrl}
@@ -589,26 +775,8 @@ const handleIframeLoad = () => {
                 onLoad={handleIframeLoad}
                 onError={() => setIframeBlocked(true)}
               />
-            ) : (
-              /* Fallback: iframe was blocked by X-Frame-Options */
-              <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-4">
-                <div className="text-5xl">🔒</div>
-                <p className="text-white/70 text-sm max-w-sm leading-relaxed">
-                  Odoo can't be embedded here due to browser security restrictions.
-                  Open it in a new tab to complete your task, then come back and
-                  click <strong className="text-white">Task Done</strong>.
-                </p>
-                <a
-                  href={odooUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition hover:opacity-90"
-                  style={{ backgroundColor: PURPLE }}
-                >
-                  Open Odoo ↗
-                </a>
-              </div>
             )}
+ 
           </div>
 
           {/* RIGHT — Task panel */}
