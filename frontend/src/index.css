@@ -4,20 +4,32 @@
 
 /* ── Brand CSS variable ─────────────────────────────────────────────────────── */
 :root {
-  --color-brand: #714B67;
+  --color-brand:      #714B67;
   --color-brand-dark: #5a3a52;
-  --color-brand-light: #8a6380;
+  --color-brand-light:#8a6380;
 }
 
+/* ── Base font — switches to Cairo when Arabic is active ─────────────────────── */
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
+
+  /* When Arabic is set on the root element, use Cairo */
+  html[data-lang="ar"] body,
+  html[dir="rtl"] body {
+    font-family: 'Cairo', system-ui, sans-serif;
+  }
+
+  /* RTL base: flip text alignment */
+  html[dir="rtl"] {
+    text-align: right;
+  }
 }
 
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
 @layer components {
-  /* ── Buttons ────────────────────────────────────────────────────────────── */
   .btn-primary {
     @apply bg-brand hover:bg-brand-dark text-white font-medium py-2.5 px-6 rounded-lg
            transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
@@ -27,14 +39,49 @@
            rounded-lg transition-colors duration-200;
   }
 
-  /* ── Form input ─────────────────────────────────────────────────────────── */
+  /* ── Form input ──────────────────────────────────────────────────────────── */
   .input-field {
     @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg
            focus:ring-2 focus:ring-brand focus:border-transparent outline-none transition-all;
   }
 
-  /* ── Card ───────────────────────────────────────────────────────────────── */
+  /* RTL: input text direction */
+  html[dir="rtl"] .input-field {
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* ── Card ────────────────────────────────────────────────────────────────── */
   .card {
     @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
   }
+}
+
+/* ── RTL layout overrides ────────────────────────────────────────────────────── */
+
+/* Tailwind flex-row-reverse in RTL for navigation rows */
+html[dir="rtl"] .rtl-flip {
+  flex-direction: row-reverse;
+}
+
+/* Border sides flip in RTL */
+html[dir="rtl"] .border-l {
+  border-left: none;
+  border-right-width: 1px;
+}
+html[dir="rtl"] .border-r {
+  border-right: none;
+  border-left-width: 1px;
+}
+
+/* Padding/margin sides flip — handled by Tailwind RTL variants (rtl:) in components */
+
+/* Scrollbars — keep LTR for predictability */
+html[dir="rtl"] ::-webkit-scrollbar {
+  direction: ltr;
+}
+
+/* Slide dots: keep natural flow */
+html[dir="rtl"] .slide-dots {
+  direction: ltr;
 }

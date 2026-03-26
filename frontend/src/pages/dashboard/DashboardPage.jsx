@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/client";
 import useAuthStore from "../../store/authStore";
 import toast from "react-hot-toast";
+import LanguageSwitcher from '../../components/common/LanguageSwitcher';
+
 
 // ── Confetti ──────────────────────────────────────────────────────────────────
 function Confetti({ active }) {
@@ -211,6 +213,8 @@ export default function DashboardPage() {
             className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-brand hover:text-brand transition hidden sm:block">
             Profile
           </button>
+          <LanguageSwitcher />
+
           {/* Method 1 — opens simulator in new tab, no specific lesson */}
           {/*<button
             onClick={() => {
