@@ -52,20 +52,35 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    has_active_access    = serializers.SerializerMethodField()
+    trial_days_remaining = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'job_title', 'company',
             'is_verified', 'created_at',
-            # ── Phase 2: onboarding fields ──────────────────────────────
+            # Onboarding
             'role', 'experience', 'learning_goal', 'onboarding_done',
+            # Subscription
+            'subscription_status', 'trial_ends_at', 'subscription_end',
+            'has_active_access', 'trial_days_remaining',
         ]
-        read_only_fields = ['id', 'email', 'is_verified', 'created_at']
+        read_only_fields = [
+            'id', 'email', 'is_verified', 'created_at',
+            'subscription_status', 'trial_ends_at', 'subscription_end',
+            'has_active_access', 'trial_days_remaining',
+        ]
+
+    def get_has_active_access(self, obj):
+        obj.refresh_subscription_status()
+        return obj.has_active_access
+
+    def get_trial_days_remaining(self, obj):
+        return obj.trial_days_remaining
 
 
 class OnboardingSerializer(serializers.ModelSerializer):
-    """Accepts onboarding answers and marks onboarding as complete."""
-
     class Meta:
         model = User
         fields = ['role', 'experience', 'learning_goal']

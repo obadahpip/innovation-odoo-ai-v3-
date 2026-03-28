@@ -23,7 +23,7 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    # ── Core fields (unchanged) ─────────────────────────────────────────────
+    # ── Core fields ─────────────────────────────────────────────────────────
     email      = models.EmailField(unique=True)
     first_name = models.CharField(max_length=100, blank=True)
     last_name  = models.CharField(max_length=100, blank=True)
@@ -34,7 +34,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff    = models.BooleanField(default=False)
     created_at  = models.DateTimeField(auto_now_add=True)
 
-    # ── Phase 2: Onboarding fields ─────────────────────────────────────────
+    # ── Phase 2: Onboarding fields ──────────────────────────────────────────
     ROLE_CHOICES = [
         ('developer',  'Developer'),
         ('accountant', 'Accountant'),
@@ -52,6 +52,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     learning_goal   = models.TextField(blank=True)
     onboarding_done = models.BooleanField(default=False)
 
+    # ── Task 2: Subscription fields ─────────────────────────────────────────
+    SUBSCRIPTION_STATUS_CHOICES = [
+        ('trial',         'Free Trial'),
+        ('trial_expired', 'Trial Expired'),
+        ('active',        'Active (Paid)'),
+        ('admin_granted', 'Admin Granted'),
+    ]
+    subscription_status = models.CharField(
+        max_length=20,
+        choices=SUBSCRIPTION_STATUS_CHOICES,
+        default='trial',
+    )
+    trial_ends_at     = models.DateTimeField(null=True, blank=True)
+    subscription_end  = models.DateTimeField(null=True, blank=True)
+
     objects = UserManager()
 
     USERNAME_FIELD  = 'email'
@@ -67,9 +82,65 @@ class User(AbstractBaseUser, PermissionsMixin):
     def full_name(self):
         return f'{self.first_name} {self.last_name}'.strip() or self.email
 
+    # ── Subscription helpers ────────────────────────────────────────────────
+
+    def activate_trial(self):
+        """Call once when the user verifies their email."""
+        from datetime import timedelta
+        self.subscription_status = 'trial'
+        self.trial_ends_at = timezone.now() + timedelta(days=3)
+        self.save(update_fields=['subscription_status', 'trial_ends_at'])
+
+    def grant_subscription(self, granted_by=None, years=1):
+        """Grant a paid or admin subscription."""
+        from datetime import timedelta
+        self.subscription_end = timezone.now() + timedelta(days=365 * years)
+        self.subscription_status = 'admin_granted' if granted_by else 'active'
+        self.save(update_fields=['subscription_status', 'subscription_end'])
+
+    @property
+    def has_active_access(self):
+        """True when the user is allowed to access course content."""
+        now = timezone.now()
+        if self.subscription_status == 'trial':
+            return bool(self.trial_ends_at) and now <= self.trial_ends_at
+        if self.subscription_status in ('active', 'admin_granted'):
+            return bool(self.subscription_end) and now <= self.subscription_end
+        return False
+
+    @property
+    def trial_days_remaining(self):
+        """Days left in trial, or 0 if expired / not in trial."""
+        if self.subscription_status != 'trial' or not self.trial_ends_at:
+            return 0
+        delta = self.trial_ends_at - timezone.now()
+        return max(0, delta.days)
+
+    def refresh_subscription_status(self):
+        """
+        Sync the status field with reality (call before returning to frontend).
+        Downgrades 'trial' → 'trial_expired' and 'active'/'admin_granted'
+        → 'trial_expired' when dates have passed.
+        """
+        now = timezone.now()
+        changed = False
+
+        if self.subscription_status == 'trial':
+            if self.trial_ends_at and now > self.trial_ends_at:
+                self.subscription_status = 'trial_expired'
+                changed = True
+
+        elif self.subscription_status in ('active', 'admin_granted'):
+            if self.subscription_end and now > self.subscription_end:
+                self.subscription_status = 'trial_expired'
+                changed = True
+
+        if changed:
+            self.save(update_fields=['subscription_status'])
+
 
 class OTPToken(models.Model):
-    PURPOSE_REGISTRATION  = 'registration'
+    PURPOSE_REGISTRATION   = 'registration'
     PURPOSE_PASSWORD_RESET = 'password_reset'
     PURPOSE_CHOICES = [
         (PURPOSE_REGISTRATION,   'Registration'),
